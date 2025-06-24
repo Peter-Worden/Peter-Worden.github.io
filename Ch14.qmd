@@ -1,0 +1,174 @@
+---
+title: "Decision Errors"
+subtitle: |
+  | IMS1 Ch. 14 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## CPR Study
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+```
+
+-   **Research question:** Do blood thinners affect survival rate in heart attack patients that have received CPR?
+-   `cpr` [^1] dataset
+-   2 variables
+    -   *group*: treatment (received blood thinner) or control (did not)
+    -   *outcome*: died or survived (for at least 24 hours)
+-   90 patients (40 treatment, 50 control, randomly assigned)
+
+[^1]: `cpr` is from the *openintro* package
+
+## Hypotheses
+
+-   Blood thinners can be administered to treat a clot that is causing a heart attack
+-   CPR can cause internal injuries
+-   Blood thinners can make it more difficult for these injuries to heal
+-   Do blood thinners affect survival in a positive or negative way?
+-   Alternative hypothesis reflects the fact that we don't have expectations about the direction of the relationship
+
+------------------------------------------------------------------------
+
+Two-sided hypothesis test
+
+-   $H_0$: Blood thinners do not affect survival rate. $p_T-p_C = 0$
+
+-   $H_A$: Blood thinners affect survival rate. $p_T-p_C \neq 0$
+
+Example of one-sided hypothesis test
+
+-   $H_0$: Blood thinners do not affect survival rate. $p_T-p_C = 0$
+
+-   $H_A$: Blood thinners increase survival rate. $p_T-p_C > 0$
+
+## Results (EDA)
+
+::: panel-tabset
+### Counts
+
+```{r}
+#| include: false
+#| echo: false
+
+cpr |>
+  count(group, outcome) |>
+  pivot_wider(names_from = outcome, values_from = n) |>
+  mutate(total = died + survived)
+```
+
+| group     | died | survived | total |
+|-----------|:----:|:--------:|------:|
+| control   |  39  |    11    |    50 |
+| treatment |  26  |    14    |    40 |
+| total     |  65  |    25    |    90 |
+
+### Bar Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Standardized barplot showing proportions of students that buy or do not buy"
+
+cpr |>
+  ggplot(aes(x = group, fill = outcome)) +
+  geom_bar(position = "fill") +
+  labs(y = "proportion") +
+  theme_minimal()
+```
+:::
+
+## Difference in proportions
+
+```{r}
+#| include: false
+#| echo: false
+
+cpr |>
+  group_by(group) |>
+  summarize(prop = mean(outcome == "survived"))  |>
+  summarize(dif = diff(prop)) #treatment - control
+```
+
+-   Success: outcome = "survived"
+-   Statistic of interest: difference in proportions $$\hat{p}_T-\hat{p}_C$$
+-   Observed difference: $$\frac{14}{40}-\frac{11}{50}=0.13$$
+
+## Hypothesis test
+
+```{r}
+#| include: false
+#| echo: false
+
+cpr |>
+  group_by(group) |>
+  summarize(n = n(), prop = mean(outcome == "survived")) |>
+  mutate(varpi = prop*(1-prop)/n) |>
+  summarize(se = sqrt(sum(varpi)))
+```
+
+-   Technical conditions met for using a normal approximation
+-   SE = 0.0955 (more on estimating this in Ch. 17)
+-   Null distribution: $N(0, 0.0955)$
+-   We will use significance level $\alpha=0.05$
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Density function for N(0, 0.0955) with tails shaded beyond 0.13."
+
+normTail(m = 0, s = 0.0995, L = -0.13, U = 0.13)
+```
+
+-   p-value is probability that statistic is at least as extreme as observed value (0.13)
+-   2-sided test: at least as extreme means $\geq 0.13$ or $\leq -0.13$
+
+------------------------------------------------------------------------
+
+-   Since the null distribution is symmetric, the p-value will be twice as large for a 2-sided test
+
+```{r}
+#| include: true
+#| echo: true
+
+2 * pnorm(-0.13, mean = 0, sd = 0.0995)
+```
+
+-   Since the p-value is greater than 0.05, we do not reject the null hypothesis
+-   It is plausible that there is no difference in survival rates between the two groups
+
+## Decision Errors
+
+-   There are two types of errors we can make in a hypothesis test
+-   **Type 1 Error** occurs if we conclude that the null hypothesis is false when it is not (false alarm)
+-   **Type 2 Error** occurs if we fail to reject the null hypothesis even though it is false (missed opportunity)
+
+## Controlling Type 1 Errors
+
+-   Type 1 Error is typically considered more severe
+-   The probability of making a type 1 error (assuming the null is true) is equal to the significance level
+-   Can reduce $\alpha$ to make type 1 errors less likely
+
+## Controlling Type 2 Errors
+
+-   There is a trade-off between the two types of errors
+-   Decreasing probability of type 1, increases the probability of type 2
+-   **Power** is the probability of rejecting the null hypothesis if the alternative is true
+-   Higher power reduces the chance of making a type 2 error
+-   Power is related to effect size (easier to detect larger effects), sample size (larger sample results in more power), among other things

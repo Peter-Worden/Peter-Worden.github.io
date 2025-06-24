@@ -1,0 +1,213 @@
+---
+title: "Interactions in Linear and Logistic Models"
+subtitle: |
+  | Additional Topic 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+library(HH)
+library(GLMsData)
+```
+
+## Iris
+
+-   The `iris` dataset has 150 observations of 5 variables
+-   Previously we fit a parallel-slopes / additive model to the relationship between petal width and petal length for 3 different species, *Iris setosa*, *Iris versicolor*, and *Iris virginica*
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(Petal.Length ~ Petal.Width + Species, data = iris) |>
+  tidy()
+```
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of petal length vs. petal width colored by species, along with parallel slopes model."
+
+par_ir_lines <- tibble(b0 = c(1.21, 2.91, 3.49), b1 = c(1.02, 1.02, 1.02),
+                      Species = c("setosa", "versicolor", "virginica"))
+
+iris |>
+  ggplot(aes(Petal.Width, Petal.Length, color = Species)) +
+  geom_point() +
+  geom_abline(data = par_ir_lines,
+              mapping = aes(slope = b1, intercept = b0, color = Species)) +
+  theme_minimal()
+```
+
+::: {style="font-size: 25px"}
+$$\widehat{Petal.Length}=\left\{\begin{array}{cl}1.21+1.02\times Petal.Width, & \textrm{if } Species = ``setosa''\\2.91+1.02\times Petal.Width, & \textrm{if } Species = ``versicolor''\\3.49+1.02\times Petal.Width, & \textrm{if } Species = ``virginica''\end{array}\right.$$
+:::
+
+## Interaction
+
+- We can include an interaction between species and petal width in the model
+- There is an interaction if different species have different relationships between the response (petal length) and petal width
+- Unlike the additive model, a model with an interaction has a different slope for each species
+
+---
+
+- There is a significant interaction between species and petal width
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(Petal.Length ~ Petal.Width * Species, data = iris) |>
+  tidy()
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of petal length vs. petal width colored by species, along with model with interaction."
+
+iris |>
+  ggplot(aes(Petal.Width, Petal.Length, color = Species)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+::: {style="font-size: 25px"}
+$$\widehat{Petal.Length}=\left\{\begin{array}{cl}1.33+0.55\times Petal.Width, & \textrm{if } Species = ``setosa''\\1.78+1.09\times Petal.Width, & \textrm{if } Species = ``versicolor''\\4.24+0.65\times Petal.Width, & \textrm{if } Species = ``virginica''\end{array}\right.$$
+:::
+
+## Palmer Penguins
+
+```{r}
+#| include: false
+#| echo: false
+
+library(palmerpenguins)
+data(penguins, package = "palmerpenguins")
+penguins <- penguins |>
+  dplyr::select(-c(island, year)) |>
+  drop_na()
+```
+
+- `penguins` dataset [^4]
+- Measurements for three species of penguins from Palmer Archipelago
+- Previously, we considered an additive model predicting body mass using bill depth, flipper length, and sex
+
+[^4]: The `penguins` dataset is from the `palmerpenguins` package.
+
+## Three-way interaction
+
+- With three predictors we can evaluate whether or not there is evidence of a **three-way interaction**
+- A three-way interaction is more difficult to interpret than a two-way interaction
+
+::: {style="font-size: 35px"}
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(body_mass_g ~ bill_depth_mm * sex * flipper_length_mm, data = penguins) |> 
+  tidy()
+```
+
+:::
+
+---
+
+- The three-way interaction is not significant, so we drop it from the model and consider the possible two-way interactions
+- Of these, the only two-way interaction that is significant is between flipper length and bill depth
+- Drop the others from the model
+
+```{r}
+lm(body_mass_g ~ bill_depth_mm * sex +  flipper_length_mm * sex + bill_depth_mm * flipper_length_mm, data = penguins) |> 
+  tidy()
+```
+
+---
+
+- The negative coefficient for the interaction between flipper length and bill depth indicates that the rate at which body mass increases with bill depth decreases as flipper length increases
+
+```{r}
+lm(body_mass_g ~ sex + bill_depth_mm * flipper_length_mm, data = penguins) |> 
+  tidy()
+```
+
+---
+
+The model
+
+::: {style="font-size: 30px"}
+
+$$\begin{array}{rcl}\widehat{body\_mass\_g} &=& -28121 + 498\times sexmale \\ & & + 1434 \times bill\_depth\_mm \\ & & + 164\times flipper\_length\_mm \\ & & - 7.34 \times bill\_depth\_mm\times flipper\_length\_mm \end{array}$$
+:::
+
+can also be written as
+
+::: {style="font-size: 30px"}
+
+$$\begin{array}{rcl}\widehat{body\_mass\_g} &=& -28121 + 498\times sexmale \\ & & + 164\times flipper\_length\_mm \\ & & +(1434 - 7.34 \times flipper\_length\_mm)\times bill\_depth\_mm\end{array}$$
+
+:::
+
+## Discrimination in Hiring
+
+-   Does perceived race or sex of an applicant affect job application callback rates?
+-   Randomly assigned a name to each resume
+-   Name implied applicant's race (Black or White) and sex (male or female)
+
+---
+
+- Previously we fit a logistic model to predict the probability of receiving a call back using job city, years experience, honors, and race
+- All of these predictors are statistically significant, including race
+
+```{r}
+#| include: true
+#| echo: true
+
+glm(received_callback ~ job_city + years_experience + honors + race,
+    family = binomial, data = resume) |>
+  tidy()
+```
+
+---
+
+- Is there evidence of an interaction between race and any of the other predictors?
+- For example, does the relationship between the probability of receiving a call back and years of experience depend on the race of the applicant?
+- Let's test all of the possible two-way interactions involving race
+
+---
+
+- We do not find convincing evidence of an interaction between race an any of the other predictors
+- We would proceed using the earlier model without interactions
+
+```{r}
+#| include: true
+#| echo: true
+
+glm(received_callback ~ job_city*race + years_experience*race +
+      honors*race, family = binomial, data = resume) |>
+  tidy()
+```
+
+
+
+

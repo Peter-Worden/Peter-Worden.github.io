@@ -1,0 +1,380 @@
+---
+title: "Linear Regression: Multiple Predictors"
+subtitle: |
+  | IMS1 Ch. 8 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: visual
+---
+
+## Mario Kart
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(broom)
+```
+
+-   You have finally decided to sell your collection of Mario Kart games for the Nintendo Wii
+-   How do different auction and game characteristics affect the price of the game on Ebay?
+
+![Box art from Mario Kart.](https://upload.wikimedia.org/wikipedia/en/d/d6/Mario_Kart_Wii.png)
+
+------------------------------------------------------------------------
+
+-   `mariokart` [^1] data from 143 Ebay sales, 12 variables, including
+
+[^1]: `mariokart` is from the *openintro* package
+
+| Variable   | Description                            |
+|------------|----------------------------------------|
+| `total_pr` | Total price (auction price + shipping) |
+| `start_pr` | Starting price of auction              |
+| `duration` | Auction length (days)                  |
+| `cond`     | Condition (new or used)                |
+| `wheels`   | Number of steering wheels included     |
+| `n_bids`   | Number of bids                         |
+
+## EDA
+
+::: panel-tabset
+### Box Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| #| fig-cap: "Box plot of total price."
+
+
+mariokart |>
+  ggplot(aes(total_pr)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+### Explore Outliers
+
+-   The two highest prices include more than just the game and wheels. Remove these points from the data.
+
+```{r}
+#| include: true
+#| echo: true
+
+mariokart |>
+  filter(total_pr >= 75) |>
+  select(total_pr, title)
+
+mariokart <- mariokart |>
+  filter(total_pr < 80)
+```
+
+### New Box Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| #| fig-cap: "Box plot of total price after outliers removed."
+
+
+mariokart |>
+  ggplot(aes(total_pr)) +
+  geom_boxplot() + 
+  theme_minimal()
+```
+:::
+
+## Single Predictor (`total_pr ~ wheels`)
+
+::: panel-tabset
+### Scatter plot
+
+```{r}
+#| include: true
+#| echo: false
+#| #| fig-cap: "Scatter plot of total price vs. number of steering wheels along with least squares line."
+
+mariokart |>
+  ggplot(aes(wheels, total_pr)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+### Linear Model
+
+$$\widehat{total\_pr} = 37.5 + 8.64\times wheels$$ <!-- Interpret -->
+
+```{r}
+#| include: true
+#| echo: true
+
+lm1 <- lm(total_pr ~ wheels, data = mariokart)
+
+tidy(lm1)
+```
+
+### $R^2$
+
+Coefficient of determination: $R^2=0.642$
+
+<!-- Interpret -->
+
+```{r}
+#| include: true
+#| echo: true
+
+glance(lm1)
+```
+:::
+
+## Adding a Categorical Predictor - Parallel Slopes Model
+
+-   We can include condition (new or used) as a second predictor in the model
+-   The variable needs to be recoded first (e.g., "new" = 0, "used" = 1)
+-   However, R will do it for us automatically when we fit a linear model with a categorical predictor
+-   With character data, R will choose the levels alphabetically
+
+------------------------------------------------------------------------
+
+-   `condused` is the recoded variable (`condused` = 0 if `cond` = new, `condused` = 1 if `cond` = used)
+
+$$\widehat{total\_pr} = 42.4+7.23\times wheels-5.58\times condused$$
+
+```{r}
+#| include: true
+#| echo: true
+
+lm2 <- lm(total_pr ~ wheels + cond, data = mariokart)
+
+tidy(lm2)
+```
+
+------------------------------------------------------------------------
+
+The model $$\widehat{total\_pr} = 42.4+7.23\times wheels-5.58\times condused$$ can be rewritten as
+
+$$\widehat{total\_pr} = \left\{\begin{array}{cc}42.4+7.23\times wheels, & \textrm{if } cond = ``new''\\36.8+7.23\times wheels, & \textrm{if } cond = ``used''\end{array}\right.$$ Since this model is composed of two lines with the same slope, this is sometimes called a **parallel slopes model**
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of total price vs. number of steering wheels colored by condition, along with parallel slopes model."
+
+par_lines <- tibble(b0 = c(42.4, 36.8), b1 = c(7.23, 7.23), cond = c("new", "used"))
+
+mariokart |>
+  ggplot(aes(wheels, total_pr, color = cond)) +
+  geom_point() +
+  geom_abline(data = par_lines, mapping = aes(slope = b1, intercept = b0, color = cond)) +
+  theme_minimal()
+```
+
+------------------------------------------------------------------------
+
+-   The coefficient of determination for the parallel slopes model is $R^2=0.717$
+-   This model explains more of the variation in the response than the model with a single predictor (72% vs. 64%)
+
+```{r}
+#| include: true
+#| echo: true
+
+glance(lm2)
+```
+
+## Adjusted R-Squared
+
+-   $R^2$ will always increase as more variables are included in the model
+-   However, that does not mean that the model will do a better job of predicting values of the response for new data (that were not used to fit the model)
+-   $R^2$ can be adjusted by introducing a penalty that increases with the number of predictors
+-   **Adjusted R-Squared** is a better choice for comparing models with different numbers of predictors
+
+------------------------------------------------------------------------
+
+-   Adjusted $R^2$ is 0.639 for the single predictor model and 0.712 for the parallel slopes model
+-   Based on adjusted $R^2$ would select the parallel slopes model over the single predictor model
+
+```{r}
+#| include: true
+#| echo: true
+glance(lm1)
+
+glance(lm2)
+```
+
+## Many Predictors
+
+-   We can include any number of predictors in our model
+-   Let's construct a model that uses all of the predictors in the mariokart data set
+
+```{r}
+#| include: true
+#| echo: true
+
+lm3 <- lm(total_pr ~ wheels + cond + start_pr + duration + n_bids,
+   data = mariokart)
+
+lm3 |> tidy()
+```
+
+------------------------------------------------------------------------
+
+The fitted model is
+
+$$\begin{array}{rcl}\widehat{total\_pr} & = & 39.4\\ & + & 6.72\times wheels\\ & - & 4.77\times condused\\ & + & 0.180 \times start\_pr\\ & - & 0.28\times duration\\ & + & 0.191\times n\_bids\end{array}$$
+
+In general, a multiple regression model with $k$ predictors has the form $$\hat{y}=b_0+b_1x_1+b_2x_2+\cdots+b_kx_k$$
+
+------------------------------------------------------------------------
+
+-   Adjusted $R^2$ for this model is 0.761.
+-   We would choose this model over the parallel slopes model, which had adjusted $R^2$ of 0.712.
+
+```{r}
+#| include: true
+#| echo: true
+glance(lm3)
+```
+
+## Model Selection
+
+-   The best model is not always the one that uses the most predictors
+-   Sometimes including an additional predictor will make the model perform *worse* when it is used to predict the outcome for new observations
+-   One way to compare competing models is using adjusted $R^2$, but there are other measures of model performance that can be used
+-   With $k$ predictors there are $2^k$ possible models
+
+## Stepwise Selection
+
+-   **Stepwise selection** strategies can be used to select a subset of predictors
+-   **Backward elimination** starts with a model with all $k$ predictors (the full model). Next, each predictor is deleted from the model and adjusted $R^2$ is computed. The model with $k-1$ predictors that has the highest adjusted $R^2$ is retained. This process is repeated as long as the adjusted $R^2$ continues to increase at each step.
+
+------------------------------------------------------------------------
+
+-   **Forward selection** starts with the null model (0 predictors). Next, a single predictor model is created for each of the $k$ predictors. Adjusted $R^2$ is computed for each one and the best single predictor model is retained. This process is repeated, adding the best single new predictor at each step as long as the adjusted $R^2$ continues to increase.
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: false
+#| echo: false
+
+# full 0.7614715
+lm(total_pr ~ wheels + cond + start_pr + duration + n_bids, data = mariokart) |> glance()
+
+# 4 - 0.7655999
+lm(total_pr ~ wheels + cond + start_pr + duration, data = mariokart) |>
+  glance() #0.7547146
+lm(total_pr ~ wheels + cond + start_pr + n_bids, data = mariokart) |>
+  glance() #0.7655999*
+lm(total_pr ~ wheels + cond + duration + n_bids, data = mariokart) |>
+  glance() #0.7129729
+lm(total_pr ~ wheels + start_pr + duration + n_bids, data = mariokart) |> 
+  glance() #0.7175296
+lm(total_pr ~ cond + start_pr + duration + n_bids, data = mariokart) |> 
+  glance() #0.4561745
+
+# 3 - 0.7523667
+lm(total_pr ~ wheels + cond + start_pr, data = mariokart) |>
+  glance() #0.7523667*
+lm(total_pr ~ wheels + cond + n_bids, data = mariokart) |>
+  glance() #0.7143661
+lm(total_pr ~ wheels + start_pr + n_bids, data = mariokart) |>
+  glance() #0.6914357
+lm(total_pr ~ cond + start_pr + n_bids, data = mariokart) |>
+  glance() #0.43299
+```
+
+Here backward selection is performed starting with the 5-predictor Mario Kart total price model. The results are summarized below.
+
+::: {style="font-size: 20px"}
+| Step | Predictors                                         | Adjusted $R^2$ |
+|------|----------------------------------------------------|:--------------:|
+| 0    | `wheels`, `cond`, `start_pr`, `duration`, `n_bids` |   **0.761**    |
+| 1    | `wheels`, `cond`, `start_pr`, `duration`           |     0.755      |
+| 1    | `wheels`, `cond`, `start_pr`, `n_bids`             |  **0.766**\*   |
+| 1    | `wheels`, `cond`, `duration`, `n_bids`             |     0.713      |
+| 1    | `wheels`, `start_pr`, `duration`, `n_bids`         |     0.718      |
+| 1    | `cond`, `start_pr`, `duration`, `n_bids`           |     0.456      |
+| 2    | `wheels`, `cond`, `start_pr`                       |   **0.752**    |
+| 2    | `wheels`, `cond`, `n_bids`                         |     0.714      |
+| 2    | `wheels`, `start_pr`, `n_bids`                     |     0.691      |
+| 2    | `cond`, `start_pr`, `n_bids`                       |     0.433      |
+:::
+
+------------------------------------------------------------------------
+
+The selected model has 4 predictors (`duration`) was dropped from the model.
+
+```{r}
+#| include: true
+#|eecho: true
+
+lm4 <- lm(total_pr ~ wheels + cond + start_pr + n_bids, data = mariokart)
+
+tidy(lm4)
+```
+
+## Categorical Predictors with More than 2 Levels
+
+-   The `iris` dataset has 150 observations of 5 variables
+-   We will focus on the relationship between petal width and petal length for 3 different species, *Iris setosa*, *Iris versicolor*, and *Iris virginica*
+-   `Species` is a categorical variable with 3 levels
+-   Adding a categorical variable with $L$ levels will introduce $L-1$ rows to the regression output
+-   You can can think of this as adding $L-1$ indicator variables that take on values 0 and 1
+
+------------------------------------------------------------------------
+
+-   Here is a model that uses `Petal.Width` and `Species` to predict `Petal.Length`.
+-   Including `Species` as a predictor introduces coefficients for `Speciesversicolor` and `Speciesvirginica` to the model.
+-   There is no coefficient for *setosa*. This is the base level for the `Species` variable (first alphabetically)
+
+```{r}
+lm_iris <- lm(Petal.Length ~ Petal.Width + Species, data = iris)
+
+tidy(lm_iris)
+```
+
+------------------------------------------------------------------------
+
+The model can be written in two ways
+
+::: {style="font-size: 25px"}
+$$\widehat{Petal.Length}=1.21 + 1.02\times Petal.Width + 1.70\times Speciesversicolor + 2.28\times Speciesvirginica$$
+:::
+
+or
+
+::: {style="font-size: 25px"}
+$$\widehat{Petal.Length}=\left\{\begin{array}{cl}1.21+1.02\times Petal.Width, & \textrm{if } Species = ``setosa''\\2.91+1.02\times Petal.Width, & \textrm{if } Species = ``versicolor''\\3.49+1.02\times Petal.Width, & \textrm{if } Species = ``virginica''\end{array}\right.$$
+:::
+
+This is another example of a parallel slopes model.
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of petal length vs. petal width colored by species, along with parallel slopes model."
+
+par_ir_lines <- tibble(b0 = c(1.21, 2.91, 3.49), b1 = c(1.02, 1.02, 1.02),
+                      Species = c("setosa", "versicolor", "virginica"))
+
+iris |>
+  ggplot(aes(Petal.Width, Petal.Length, color = Species)) +
+  geom_point() +
+  geom_abline(data = par_ir_lines,
+              mapping = aes(slope = b1, intercept = b0, color = Species)) +
+  theme_minimal()
+```

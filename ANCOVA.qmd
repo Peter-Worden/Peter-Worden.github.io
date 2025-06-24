@@ -1,0 +1,326 @@
+---
+title: "ANCOVA"
+subtitle: |
+  | Additional Topic 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+library(HH)
+```
+
+
+
+## Hot Dogs
+
+```{r}
+#| include: false
+#| echo: false
+
+data(hotdog)
+```
+
+-   Are hot dogs made with some types of meat healthier than others?
+-   We will consider both calorie content and sodium levels for beef, poultry, and meat (mostly pork and beef) hot dogs
+- Based on an example from text by Heiberger and Holland (2015)
+- `hotdog` dataset from `HH` package
+
+---
+
+- Hot dogs made from poultry are often lower in calories
+- Do manufacturers add sodium to enhance flavor to make up for the lower fat content?
+- We might start to approach this question by comparing sodium content between hot dog types using a standard one-way ANOVA
+
+## Sodium Levels
+
+::: panel-tabset
+### Ridge Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Ridge plot showing distributions of sodium content in different types of hot dogs."
+
+library(ggridges)
+hotdog |>
+  ggplot(aes(x = Sodium, y = Type, fill = Type)) +
+  geom_density_ridges() +
+  theme_minimal()
+```
+
+### Summary Statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+hotdog |>
+  group_by(Type) |>
+  summarize(n = n(), mean = mean(Sodium), sd = sd(Sodium))
+```
+
+| Type   |  n  | mean |  sd  |
+|---------|:---:|:----:|:----:|
+| Beef   | 20  | 401 | 102 |
+| Meat  | 17 | 419 | 93.9 |
+| Poultry   | 17  | 459 | 84.7 |
+
+:::
+
+## One-Way ANOVA
+
+Statistical model
+$$y_{ij}=\mu + \alpha_i + \varepsilon_{ij}$$
+ANOVA table
+
+```{r}
+#| include: true
+#| echo: true
+
+hds_lm <- lm(Sodium ~ Type, data = hotdog)
+
+hds_lm |>
+  anova() |>
+  tidy()
+```
+
+---
+
+- Based on this analysis we do not have convincing evidence that at least one of the mean sodium levels is different
+- However, we have not accounted for the dependence of sodium on calorie content
+- Next we will conduct an analysis that accounts for this covariate
+
+## Analysis of Covariance (ANCOVA)
+
+- Statistical model for the $j$th observation in the $i$th group:
+$$y_{ij}=\mu + \alpha_i + \beta(X_{ij} - \bar{\bar{X}})+\varepsilon_{ij}$$
+- Like before, $\mu$ is the overall population mean, $\alpha_i$ is the differential effect of group $i$, $\beta$ is the slope
+- $\bar{\bar{X}}$ is the overall mean of the $X_{ij}$s
+- Each group has a different intercept ($\mu+\alpha_i$)
+- All groups have a common slope $\beta$
+
+## Linear model
+
+- We can fit a linear model as we have in the past
+- One categorical predictor, one numeric predictor
+
+```{r}
+#| include: true
+#| echo: true
+
+hdsc_lm <- lm(Sodium ~ Calories + Type, data = hotdog)
+
+hdsc_lm |>
+  tidy()
+```
+
+---
+
+- The linear model that R fit to the data is
+$$\begin{array}{rcl}\widehat{Sodium} &=& -113 + 3.28\times Calories\\ && +11\times TypeMeat + 183\times TypePoultry\end{array}$$
+- We can recast the standard ANCOVA model in a similar form
+$$y_{ij} = (\mu-\beta\bar{\bar{X}}+\alpha_1) + (\alpha_i - \alpha_1) + \beta X_{ij} + \varepsilon_{ij}$$
+- By identifying terms in this model with the regression output, we can estimate the coefficients in the standard model
+
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+hotsum <- hotdog |> 
+  summarize(SodMean = mean(Sodium),
+          CalMean = mean(Calories))
+
+b2 <- hdsc_lm$coefficients["TypeMeat"]
+b3 <- hdsc_lm$coefficients["TypePoultry"]
+int <- hdsc_lm$coefficients["(Intercept)"]
+b <- hdsc_lm$coefficients["Calories"]
+xbar <- hotsum$CalMean
+bxbar <- b*xbar
+
+m <- (3*int + 3*bxbar + b2 + b3)/3
+a1 <- int + bxbar - m
+a2 <-  b2 + a1
+a3 <-  b3 + a1
+```
+
+Prediction model in standard form
+$$\widehat{Sodium} = 428+3.28\times (Calories-145) + \left\{\begin{array}{ll}-65 & \text{if } Beef\\
+-53 & \text{if } Meat \\ 118 & \text{if } Poultry\end{array}\right.$$
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Sodium vs Calories, faceted by Type with linear model"
+
+regline <- tibble(slope = rep(3.28, 3), intercept = 428-3.28*145 + c(-65, -53, 118), Type = c("Beef", "Meat", "Poultry"))
+
+hotdog |>
+  ggplot(aes(Calories, Sodium, color = Type)) +
+  geom_point() +
+  geom_abline(data = regline, aes(slope = slope, intercept = intercept)) +
+  facet_wrap(~Type, nrow = 1) +
+  theme_bw()
+```
+
+## Hypotheses
+
+- We will test the hypotheses
+  - $H_0: \alpha_1=\alpha_2=\alpha_3=0$
+  - $H_A:$ at least one alpha is different
+- However, this time our analysis (ANCOVA) will take into account the relationship between `Sodium` and `Calories`
+
+## ANOVA table
+
+```{r}
+#| include: true
+#| echo: true
+
+hdsc_lm |>
+  anova() |>
+  tidy()
+```
+
+## A different conclusion
+
+- When we take into the covariate (`Calories`) into account, we come to a different conclusion
+- We reject the null hypothesis. There is an association between sodium and hotdog type
+- The ANCOVA compared the intercepts of the three lines
+- We found that the vertical distance between the lines is significantly different from 0
+
+## Adjusting for Calories
+
+We can adjust `Sodium` for `Calories` by subtracting $b(X_{ij}-\bar{\bar{X}})$ from each $y_{ij}$, where $b$ is the estimate of the slope
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Sodium Adjusted for Calories vs Calories, faceted by Type with adjusted linear model"
+
+regline <- tibble(intercept = 428 + c(-65, -53, 118), Type = c("Beef", "Meat", "Poultry"))
+
+hotdog |>
+  mutate(Sodium.Adjusted = Sodium - b*Calories + 3.28*145) |>
+  ggplot(aes(Calories, Sodium.Adjusted, color = Type)) +
+  geom_point() +
+  geom_hline(data = regline, aes(yintercept = intercept)) +
+  facet_wrap(~Type, nrow = 1) +
+  theme_bw()
+```
+
+## Sequential sums of squares
+
+ - R computes sums of square sequentially by default
+ - First, the sums of squares for calories is calculated (as a regression sum of squares) $$SS_{Calories}=\sum_{i=1}^n(\hat{y}_i-\bar{y})^2$$
+ - $\hat{y}$ is based on a model that does not account for hot dog type
+ 
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Calories + Type, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+Compare to $SS_{Calories}$ without `Type`
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Calories, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+- Next, the sums of squares for hot dog type is calculated, accounting for calories
+$$SS_{Type}=\left(\sum_{i=1}^a\sum_{j=1}^{n_i}(\hat{y}_{ij}-\bar{\bar{y}})^2\right)-SS_{Calories}$$
+- Here, the prediction $\hat{y}_{ij}$ uses the full model: a different intercept for each type of hot dog (but same slope)
+- This is the sum of squares that is accounted for by the full model that is not accounted for by calories alone
+
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+Sodium_mean <- hotdog |>
+  summarize(mean = mean(Sodium)) |>
+  pull()
+
+hdsc_lm |>
+  augment() |>
+  mutate(ssij = (.fitted - Sodium_mean)^2) |>
+  summarize(SS = sum(ssij)) |>
+  pull()
+
+# subtract SS_{Calories} = 106269.7
+# to get SS_{Type}
+```
+Compare $SS_{Type}$ accounting for `Calories`
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Calories + Type, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+To $SS_{Type}$ without accounting for `Calories`
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Type, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+## Sequential Sums of Squares: Order
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Calories + Type, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+Compare to `Type` first
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Sodium ~ Type + Calories, data = hotdog) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+If there is one factor of interest (`Type`), but we want to account for another variable (`Calories`), the factor of interest should enter the model *last*

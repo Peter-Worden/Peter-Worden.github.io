@@ -1,0 +1,216 @@
+---
+title: "Post-Hoc Tests, Multiple Comparisons"
+subtitle: |
+  | Heiberger & Holland Ch. 7 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Wordsum Score
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+```
+
+```{r}
+#| include: false
+#| echo: false
+gss <- read_csv("https://faculty.hope.edu/yurk/ims1_data/gss_wordsum_class.csv")
+```
+
+-   Do Wordsum test scores vary between self-identified social classes?
+-   Self-identified social classes: "Lower" (L), "Middle" (M), "Upper" (U), "Working" (W)
+-   Let $\mu_C$ = mean score for social class $C$
+-   Hypothesis test
+    -   $H_0: \mu_L=\mu_M=\mu_U=\mu_W$
+    -   $H_A:$ at least one of the means is different
+    
+## ANOVA
+
+- We conducted a hypothesis test based on a randomized null distribution of $F$ statistics
+- And a test (ANOVA) using a model ($F$-distribution)
+- We found convincing evidence ($F_{3,791}=21.73$, p-value < 0.001) that at least one mean score is different
+
+```{r}
+#| include: true
+#| echo: true
+
+aov(wordsum ~ class, data = gss) |> 
+  tidy()
+```
+
+## Follow-Up Tests
+
+- So far we have taken a holistic view, considering all of the groups at the same time to determine if at least one of the means is different
+- If we conclude that there is convincing evidence that there is a difference, we can make pairwise group comparisons
+- If there are $k$ groups, then there are $a=k\cdot(k-1)/2$ pairwise comparisons
+- In the Wordsum example there are 4 groups, resulting in $a = (4\cdot 3)/2=6$ possible pairwise comparisons
+
+## Multiple comparisons
+
+We could perform 6 separate hypothesis tests (e.g., $t$-tests):
+
+- $H_0:\mu_L-\mu_M=0$, $\hspace{2ex} H_A:\mu_L-\mu_M\neq0$
+- $H_0:\mu_L-\mu_U=0$, $\hspace{2ex} H_A:\mu_L-\mu_U\neq0$
+- $H_0:\mu_L-\mu_W=0$, $\hspace{2ex} H_A:\mu_L-\mu_W\neq0$
+- $H_0:\mu_M-\mu_U=0$, $\hspace{2ex} H_A:\mu_M-\mu_U\neq0$
+- $H_0:\mu_M-\mu_W=0$, $\hspace{2ex} H_A:\mu_M-\mu_W\neq0$
+- $H_0:\mu_U-\mu_W=0$, $\hspace{2ex} H_A:\mu_U-\mu_W\neq0$
+
+## Data
+
+::: panel-tabset
+### Ridge Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Ridge plot showing distribution of word scores for each self-identified social class"
+
+library(ggridges)
+gss |>
+  ggplot(aes(x = wordsum, y = class, fill = class)) +
+  geom_density_ridges() +
+  theme_minimal()
+```
+
+### Summary Statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+gss |>
+  group_by(class) |>
+  summarize(n = n(), mean = mean(wordsum), sd = sd(wordsum))
+```
+
+| class   |  n  | mean |  sd  |
+|---------|:---:|:----:|:----:|
+| LOWER   | 41  | 5.07 | 2.24 |
+| MIDDLE  | 331 | 6.76 | 1.89 |
+| UPPER   | 16  | 6.19 | 2.34 |
+| WORKING | 407 | 5.75 | 1.87 |
+
+
+### T-Tests
+
+- Pairwise t-tests using pooled SD (pooled across all groups)
+- No adjustment for multiple comparison
+- p-values:
+
+```{r}
+#| include: false
+#| echo: false
+library(magrittr)
+
+# Uses pooled sd by default (across all groups not just within pairs)
+gss %$% #nice
+  pairwise.t.test(wordsum, class, p.adjust.method = "none")
+```
+
+|     |   LOWER |  MIDDLE | UPPER |
+|--|:-:|:-:|:-:|
+| MIDDLE | 1.1e-07 |  -   |    -  |  
+| UPPER  |  0.048 |  0.240 |  -    |
+| WORKING | 0.031  | 1.6e-12 | 0.367 |
+
+:::
+
+## The Problem with Multiple Comparisons
+
+- With $a$ pairwise comparisons using a significance level of $\alpha$, for each test, the probability of making at least one Type 1 error if there are no difference between groups is $1-(1-\alpha)^a$
+- If each $H_0$ is true, probability of at least one Type 1 error in 6 tests with $\alpha = 0.05$: $$1-0.95^6=0.265$$
+
+## Familywise Error Rate
+
+- The Familywise Error rate (FWE) is the probability of making at least one Type 1 error when performing multiple hypothesis tests
+- We can control the FWE using **multiple comparison methods**
+- These methods use a reduced significance level for each hypothesis test to ensure $FWE\leq\alpha$
+
+## Bonferroni Method
+
+- The **Bonferroni method** is the simplest multiple comparison method
+- Let $E_i$ be the event of making a Type 1 error with test $i$
+- For $a$ tests,
+$$P(E_1 \text{ or } E_2 \text{ or }\cdots\text{ or } E_a) \leq P(E_1) + P(E_2)+\ldots + P(E_a)$$
+- If each test conducted at significance level $\alpha/a$
+$$FWE\leq\frac{\alpha}{a}+\frac{\alpha}{a}+\ldots+\frac{\alpha}{a}=a\cdot\frac{\alpha}{a}=\alpha$$
+
+-----
+
+- For $a$ tests, the Bonferroni method tests each one at a level of $\alpha/a$
+- For the Wordscore example each test would use a level of $0.05/6=0.00833$
+- Equivalently, the p-value from each test is **adjusted** by multiplying by the number of tests
+- The **adjusted p-values** are compared to the original significance level
+
+## Adjusted P-Values
+
+Using the Bonferroni method
+
+```{r}
+#| include: true
+#| echo: true
+library(magrittr) # to get the %$% pipe
+
+gss %$%
+  pairwise.t.test(wordsum, class, p.adjust.method = "bonferroni")
+```
+
+---
+
+- Bonferroni method is very conservative, resulting in FWE that is usually much smaller than $\alpha$ (loss of power)
+- There are alternative methods that are less conservative and have higher power while still controlling FWE
+- E.g. Holm's method (`p.adjust.method = "holm"`)
+
+## Tukey Procedure
+
+- Less conservative than Bonferroni method
+- Only for pairwise comparisons of means
+
+```{r}
+#| include: true
+#| echo: true
+
+aov(wordsum ~ class, data = gss) |> 
+  TukeyHSD()
+```
+
+## Conclusions
+
+- We come to the same conclusions using the Tukey procedure or the Bonferroni method (but not the unadjusted p-values!)
+- Based on the results of the ANOVA, we concluded that there is convincing evidence that at least one of the mean scores is different
+- We followed this with **post-hoc** pairwise tests for differences between group means
+
+---
+
+- Based on the pairwise tests, we conclude that there is convincing evidence of differences between mean scores for the "Middle" and "Lower" social classes and and between mean scores for the "Working and Middle" social classes.
+- We are unable to reject the other null hypotheses
+- For example, it is plausible that the mean scores are the same for "Upper" and "Lower" social classes
+
+## Multiple Proportions
+
+- We can also perform post-hoc tests after we perform a hypothesis test for multiple proportions (e.g., a chi-squared test)
+- In this case we would use the `pairwise.prop.test` function in *R*
+
+---
+
+- We can calculate confidence intervals for pairwise differences (means or proportions) using the same ideas
+- Bonferroni correction can be applied to the confidence level
+- Use $100\cdot(1-\alpha/a)\%$ for $a$ comparisons
+- For a 95% confidence level, we would compute CI for the 6 pairwise differences with confidence level $100\cdot(1-0.05/6)=99.17\%$
+- Also see CI output from Tukey procedure

@@ -1,0 +1,181 @@
+---
+title: "Study Design"
+subtitle: |
+  | IMS1 Ch. 2 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Inferential statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(tidytuesdayR)
+library(knitr)
+library(kableExtra)
+```
+- It is usually impractical to make observations on every individual in a **population** (this type of study is called a **census**)
+- Instead select a **sample** from the population and use observations made on the sample to make **inferences** about the population
+
+---
+
+Example: The Hope College Biology Department would like to know the proportion of hemlock trees in the Hope College Nature Preserve (HCNP) that are infested by hemlock woolly adelgid (HWA)
+
+- Census: researchers inspect every hemlock in the preserve (the population) for HWA infestation and calculate the proportion
+- Survey: researchers randomly select 100 hemlock trees in the preserve (a sample) inspect them and calculate the proportion 
+
+## Parameter vs. statistic
+
+- A **statistic** is a numerical value or summary measure that is calculated from a *sample*
+- A **parameter** is the corresponding value in the *population*
+- The value of statistic give us an **estimate** of the value of the corresponding parameter
+
+---
+
+*Identify the parameter and the statistic.*
+
+- The proportion of trees infested with HWA in a sample of 100 hemlocks from the HCNP
+- The proportion of trees infested with HWA in the HCNP
+
+## Anecdotal Evidence
+
+- **Anecdotal evidence** refers to personal stories, experiences, or individual observations 
+- Inferences should not be made using anecdotal evidence or data that are collected in a haphazard manner
+- Such information may not be representative of the population
+- Instead, inferences should be based on carefully designed studies
+
+---
+
+*Identify anecdotal evidence.*
+
+- Your friend, who recently visited the HCNP, stated that they noticed that about half the hemlocks seemed to be infested with HWA
+- Students from an introductory Biology lab use a map to select 50 hemlocks in the HCNP. They visit the trees and record whether each one has signs of infestation with HWA
+
+## Scope of Inference
+
+- The **design** of a study can effect the **scope** of the inferences we can make
+- How the sample is selected affects our ability to **generalize** the results to the population
+- Whether we conduct an **observational study** or an **experiment** determines whether whether we can conclude that there is a **cause and effect** relationship between variables or just an **association**
+
+## Sampling from a population
+
+- **Convenience samples** are not usually **representative** of the population they are selected from, so limits ability to generalize
+- **Random sampling** is a strategy for selecting a representative sample, allowing generalization
+
+---
+
+*Identify the convenience sample and the random sample.*
+
+- A group of introductory Biology walks the trails at the HCNP. As they walk they visit every hemlock that they see from the trail and inspect it for the presence of HWA
+- Another group obtains a list of all of the hemlocks in the preserve, which were previously tagged and mapped by another group of students. They use a random number generator to select 50 trees and visit them in the field using the map. They inspect each tree for the presence of HWA 
+
+## Sampling strategies
+
+- **simple random sample** (SRS): every individual or unit has an equal and independent chance of being selected
+- **stratified sample**: population is divided into groups (**strata**) based on certain characterisics and SRS is selected from each group 
+     
+---
+
+![Illustrations of simple random sample and stratified sample. IMS1 Figure 2.5.](https://openintro-ims.netlify.app/02-data-design_files/figure-html/simple-stratified-1.png)
+
+---
+
+- **cluster sample**: population is divided into groups (**clusters**). A subset of the clusters is randomly selected. All of the individuals or units in the selected clusters are included in the sample.
+- **multistage sampling**: same as cluster sampling except that SRS is selected from each of the selected clusters 
+
+---
+
+![Illustrations of cluster sample and multistatge sample. IMS1 Figure 2.6.](https://openintro-ims.netlify.app/02-data-design_files/figure-html/cluster-multistage-1.png)
+
+--- 
+
+*Identify the sampling strategy.*
+
+- A group of biology students draws an east-west line on a map of the HCNP that splits the preserve into northern and southern halves. They randomly select 25 trees from the northern half and 25 trees from the southern half. They visit the 50 trees and note whether HWA is present on each one
+
+---
+
+*Identify the sampling strategy.*
+
+- A group of Biology students overlay a map of the HCNP with a grid of 100 meter by 100 meter cells. They randomly select 8 of the cells and visit every hemlock in each of the selected cells. They note whether HWA is present for each of the trees they visit.
+- A group of students uses the same grid. They randomly select 10 cells. Then they randomly select 5 trees from each of the selected cells. They visit each of the 50 trees and note whether HWA is present.
+
+---
+
+*When are different sampling strategies used?*
+
+- Stratified samples are often used when we expect individuals to be fairly uniform within strata, but more variable between strata
+- cluster or multistage samples are often used when we expect individuals to be more variable within clusters
+
+## Experiments and observational studies
+
+- **observational study**: researchers observe and collect data without intervening or manipulating any variables. Subjects are observed as they are.
+- **experiment**: researchers deliberately manipulate one or more independent (explanatory) variables to observe the effect of these changes on one or more dependent (response) variables
+
+---
+
+- If an **association** is found between variables in an observational study, researchers cannot conclude that changing the value of one variable **causes** the value of the other variable to change due to the possibility of having **confounding variables**
+- **confounding variable**: a variable that is associated with both the explanatory variable and the response variable
+
+---
+
+*Example:* The waste management company that handles garbage and recycling from Hope College will not recycle items from bins that exceed a certain level of contamination (non-recyclable items). A group of Hope College students wants to investigate whether a sign placed above a recycling bin can lead to less contamination.
+
+---
+
+The students conduct a study in which they collect all of the items collected each day for a month from a recycling bin in the Student Center that does not have a sign and from a recycling bin in Lichty Hall (a residence hall) that has a sign. They find that there is a lower rate of contamination in the bin with a sign
+
+- Is this an observational study or an experiment?
+- What is a possible confounding variable?
+- Can the students conclude that use of a sign causes there to be a lower contamination rate?
+
+---
+
+*Example:* Another group of students conducts a study in which they collect items from 20 recycling bins on campus each day for a month. On some of the days they place a sign above some of the bins while ensuring that the others do not have a sign posted. On each day, for each bin, they record whether the bin has a sign or not and the proportion of items that are contaminated.
+
+- Is this an observational study or an experiment?
+- Why?
+
+<!-- --- -->
+
+<!-- - **Controlling**: in an experiment researchers try to control for differences in groups.  -->
+<!-- - E.g., drug efficacy study: patients assigned to groups receiving drug or not and improvement in symptoms is measured. Those not receiving drug receive a **placebo**, and everyone receives same instructions -->
+
+<!-- --- -->
+
+## Random Assignment
+
+- **Random assignment** can be used to ensure that different treatment groups will tend to be similar with respect to possible confounding variables
+- Cases are randomly assigned to treatment groups
+
+---
+
+*Example:* The student group conducting the recycling signage experiment randomly assigns 10 bins to receive a sign and 10 bins to be unsigned each day of the study. On each day they note whether each bin has a sign or not and the proportion of items that were contaminated
+
+- Is this a randomized experiment?
+- Will signs tend to appear more often in residential spaces than public ones?
+
+## Blocking
+
+- **Blocking** is a way to intentionally even out differences that are suspected to influence the response.
+- Sample is broken into **blocks** and then treatment is randomly assigned within blocks.
+
+---
+
+![Illustration of blocking. IMS1 Figure 2.7.](https://openintro-ims.netlify.app/02-data-design_files/figure-html/blocking-1.png)
+
+---
+
+*Example:* The student group conducting the recycling signage experiment identifies 10 recycling bins located in public spaces (student center, library, academic buildings) and 10 recycling bins located in residential spaces. Each day of the study, they randomly assigns 5 of the public bins and 5 of the residential bins to receive a sign and the others to be unsigned. They record whether each bin has a sign or not, the location of the bin (public or residential), and the proportion of items that were contaminated.
+
+- What is the blocking variable?
+- Will signs tend to appear more often in residential spaces than public ones?
+

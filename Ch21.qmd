@@ -1,0 +1,295 @@
+---
+title: "Compare Paired Means"
+subtitle: |
+  | IMS1 Ch. 21 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Textbook Prices
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+```
+
+```{r}
+#| include: false
+#| echo: false
+data(ucla_textbooks_f18)
+
+ucla_textbooks_f18 <- ucla_textbooks_f18 |>
+  drop_na(bookstore_new, amazon_new) |>
+  select(subject, course_num, bookstore_new, amazon_new)
+```
+
+-   Will you save money if you buy textbooks from Amazon instead of a university bookstore?
+- We will compare prices of books from Amazon and the UCLA bookstore
+- For each book in the data we will calculate the difference between the book's price at the UCLA bookstore and its price on Amazon
+- Since our data consists of a single difference for each book, the analysis will be similar to the single mean case
+
+## Inference
+
+-  We will estimate the difference mean difference in book price $\mu_{diff}$ using a confidence interval
+-   We will conduct a hypothesis test with hypotheses
+    -   $H_0: \mu_{diff} = 0$
+    -   $H_A: \mu_{diff} \neq 0$
+- We will calculate differences with the order UCLA - Amazon
+
+## Data
+
+-   `ucla_textbooks_f18` [^1] dataset
+-   Sample of 68 books used in courses at UCLA in 2018
+-   `bookstore_new` is price of new book at bookstore
+- `amazon_new` is price of new book on Amazon
+
+[^1]: `ucla_textbooks_f18` is from the `openintro` package
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+ucla_textbooks_f18
+```
+
+---
+
+- One way to analyze the data would be to treat the books on Amazon and the books at the bookstore as two groups. Then we could compare the difference in the group means
+- Each observation would be a book on Amazon or a book at the bookstore
+- This ignores the **paired** structure of the data (observations are not independent)
+- Analysis would be inappropriate and have lower power
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+ucla_textbooks_f18 <- ucla_textbooks_f18 |>
+  mutate(price_diff = bookstore_new - amazon_new)
+
+ucla_textbooks_f18
+```
+
+- By analyzing the difference in price, we account for the paired structure
+- Each observation is a different book
+
+---
+
+## EDA
+
+::: panel-tabset
+### Dot Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Price differences (USD) between UCLA bookstore and Amazon for 68 books."
+
+ucla_textbooks_f18 |>
+  ggplot(aes(price_diff)) +
+  geom_dotplot(dotsize = 0.5, stackratio = 1.2) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  labs(x = "Price difference in USD (UCLA bookstore - Amazon)") +
+  theme_minimal()
+```
+
+### Summary Statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+text_summary <- ucla_textbooks_f18 |>
+  summarize(n = n(), mean = mean(price_diff),
+            median = median(price_diff),
+            sd = sd(price_diff),
+            iqr = IQR(price_diff))
+
+mean_diff <- text_summary |>
+  pull(mean)
+```
+
+| n |  mean  | median  |  sd   | iqr |
+|:--:|:---:|:-----:|:-----:|:---:|
+| 68 | 3.58 | 0.625 | 13.4 | 3.98  |
+
+- The observed mean difference is $\bar{x}_{diff}=3.58$
+- Based on the shape of the distribution, you could easily argue that the median is a more appropriate measure of center!
+
+:::
+
+## Hypothesis Test Using Random Permutation
+
+- We can use randomization to simulate variability in the statistic under a true null hypothesis
+- To simulate independence between price and bookseller, we randomly reassign the book prices for each book
+
+---
+
+- E.g., here are the data for the first book
+
+::: {style="font-size: 20px"}
+
+| subject | course_num | bookstore_new | amazon_new | price_diff |
+|--|:--:|:--:|:--:|:--:|
+| American Indian Studies |	M10 | 47.97 |	47.45 |	0.52 |
+
+:::
+
+- Random reassignment results in one of two possible outcomes: original prices or swapped prices
+
+::: {style="font-size: 20px"}
+
+| subject | course_num | bookstore_new | amazon_new | price_diff |
+|--|:--:|:--:|:--:|:--:|
+| American Indian Studies |	M10 | 47.97 |	47.45 |	0.52 |
+
+:::
+
+Or
+
+::: {style="font-size: 20px"}
+
+| subject | course_num | bookstore_new | amazon_new | price_diff |
+|--|:--:|:--:|:--:|:--:|
+| American Indian Studies |	M10 |	47.45 | 47.97 |	-0.52 |
+
+:::
+
+- We can think of the randomization as flipping a coin for each book to determine which of the two assignments will occur in the randomized sample
+
+---
+
+- Let's create 1,000 random permutations of the data
+
+```{r}
+#| include: true
+#| echo: true
+
+set.seed(8675309)
+
+library(infer)
+text_perm <- 
+   ucla_textbooks_f18 |> 
+   specify(response = price_diff) |> 
+   hypothesize(null = "paired independence") |>
+   generate(reps = 1000, type = "permute") |>
+   calculate(stat = "mean")
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Histogram of 1,000 mean of randomized differences (null distribution). Dashed vertical lines indicate differences of 3.58 (observed mean difference) and -3.58."
+
+text_perm |>
+  ggplot(aes(stat)) +
+  geom_histogram(bins = 30, color = "white") +
+  geom_vline(xintercept = 3.58, color = "red", linetype = "dashed", linewidth = 2) +
+  geom_vline(xintercept = -3.58, color = "red", linetype = "dashed", linewidth = 2) +
+  labs(x = "mean of randomized differences of book prices (UCLA - Amazon)",
+       title = "1,000 means of randomized differences") +
+  theme_minimal()
+```
+
+---
+
+- The p-value is the proportion of the means of differences that are at least as extreme as the observed mean difference (3.58)
+- We reject the null hypothesis, and conclude that Amazon prices are, on average, different from UCLA bookstore prices 
+
+```{r}
+#| include: true
+#| echo: true
+
+text_perm |>
+  summarize(num_extreme = sum(abs(stat) >= mean_diff),
+            pval = mean(abs(stat) >= mean_diff))
+  
+```
+
+## Boostrap Confidence Intervals
+
+- We can calculate bootstrap confidence intervals (percentile or SE) using the same approach as in the singe mean case
+- We resample the price differences (UCLA - Amazon) from the sample with replacement to simulate the variability in the statistic
+
+```{r}
+#| include: true
+#| echo: true
+
+text_boot <- ucla_textbooks_f18 |>
+  specify(response = price_diff) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "mean")
+```
+
+---
+
+- The 95% bootstrap confidence interval for the mean price difference is (\$0.81, \$7.05).
+
+```{r}
+#| include: true
+#| echo: true
+
+text_boot |> 
+  summarize(ci_lo = quantile(stat, 0.025),
+            ci_hi = quantile(stat, 0.975))
+```
+
+- The 95% bootstrap SE confidence interval is (\$0.40, \$6.76)
+
+```{r}
+#| include: true
+#| echo: true
+
+text_boot |> 
+  summarize(se = sd(stat))
+```
+
+
+## Hypothesis Test Using a Mathematical Model
+
+- We can use the same mathematical model as the single mean case to conduct a hypothesis test
+- The standard error for the mean difference is $$SE_{diff}=\frac{s_{diff}}{\sqrt{n_{diff}}}=\frac{13.4}{\sqrt{68}}=1.62$$
+- The $T$ statistic is
+$$T=\frac{\bar{x}_{diff}-0}{SE_{diff}}=\frac{3.58-0}{1.63}=2.20$$
+
+---
+
+- The degrees of freedom are $df = 68-1=67$
+- We can calculate a p-value by finding the area in the two tails of the $t$-distribution with $df=67$ that is beyond -2.20 or 2.20
+
+```{r}
+#| include: true
+#| echo: true
+
+2*pt(-2.20, df = 67)
+```
+
+## Confidence Interval Using a Mathematical Model
+
+- We can also use a mathematical model to calculate confidence intervals
+- The interval is $$\bar{x}_{diff}\pm t^{\ast}_{df}\times SE_{diff}$$
+- For a 95% CI, $t^{\ast}_{67}=1.996$
+```{r}
+#| include: true
+#| echo: true
+
+qt(0.975, df = 67)
+```
+- A 95% CI is given by $3.58\pm1.996×1.62=(\$0.346, \$6.81)$

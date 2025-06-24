@@ -1,0 +1,61 @@
+---
+title: "Math 215 Slides"
+format: html
+editor: source
+---
+
+[Chapter 1: Hello Data](Ch1.html)
+
+[Chapter 2: Study Design](Ch2.html)
+
+[Chapter 4: Exploring Categorical Data](Ch4.html)
+
+[Chapter 5: Exploring Numerical Data](Ch5.html)
+
+[Chapter 7: Linear Regression with a Single Predictor](Ch7.html)
+
+[Chapter 8: Linear Regression with Multiple Predictors](Ch8.html)
+
+[Chapter 9: Logistic Regression](Ch9.html)
+
+[Chapter 11: Hypothesis Testing with Randomization](Ch11.html)
+
+[Chapter 12: Confidence Intervals with Bootstrapping](Ch12.html)
+
+[Chapter 13: Inference with Mathematical Models](Ch13.html)
+
+[Chapter 14: Decision Errors](Ch14.html)
+
+[Chapter 16: Inference for a Single Proportion](Ch16.html)
+
+[Chapter 17: Inference for Comparing Two Proportions](Ch17.html)
+
+[Chapter 18: Inference for Two-Way Tables](Ch18.html)
+
+[Chapter 19: Inference for a Single Mean](Ch19.html)
+
+[Chapter 20: Inference for Comparing Two Independent Means](Ch20.html)
+
+[Chapter 21: Inference for Comparing Paired Means](Ch21.html)
+
+[Chapter 22: Inference for Comparing Many Means](Ch22.html)
+
+[Additional Topic: Multiple Comparisons](MultComp.html)
+
+[Chapter 24: Inference for Regression with a Single Predictor](Ch24.html)
+
+[Chapter 25: Inference for Regression with Multiple Predictors](Ch25.html)
+
+[Chapter 26: Inference for Logistic Regression](Ch26.html)
+
+[Additional Topic: Linear Models and ANOVA](LM_ANOVA.html)
+
+[Additional Topic: Analysis of Covariance (ANCOVA)](ANCOVA.html)
+
+[Additional Topic: Blocking in Experiments](Blocking.html)
+
+[Additional Topic: Stratification in Observational Studies](ObsStratANOVA.html)
+
+[Additional Topic: Two-Way ANOVA](TwoWayANOVA.html)
+
+[Additional Topic: Interactions in Linear and Logistic Models](MoreInteractions.html)

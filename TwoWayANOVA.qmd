@@ -1,0 +1,393 @@
+---
+title: "Two-Way ANOVA"
+subtitle: |
+  | Additional Topic 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+library(HH)
+library(GLMsData)
+```
+
+## Experiments with two factors
+
+- We have considered experiments with one treatment factor and one blocking factor 
+- Now we will consider experiments with two treatment factors
+- The approach generalizes to more than two factors as well
+
+## Experimental Designs
+
+- Randomized complete block design (RCBD): 1 treatment factor with $t$ levels, 1 blocking factor with $b$ levels, exactly $t$ experimental units in each block (one for each treatment level)
+- **Factorial design**: 2 or more factors, 1 or more observations per cell (**replication**)
+- A factorial design is called **balanced** if there is the same number of observations in each cell
+- Our focus will be on balanced factorial designs
+
+## Iron Content and Pot Type
+
+```{r}
+#| include: false
+#| echo: false
+
+data(toothbrush)
+
+toothbrush <- toothbrush |>
+  mutate(plaque_rem = Before - After)
+
+lm(plaque_rem ~ Sex + Toothbrush, data = toothbrush) |>
+  anova() |>
+  tidy()
+
+lm(plaque_rem ~ Toothbrush + Sex, data = toothbrush) |>
+  anova() |>
+  tidy()
+
+data(flowers)
+
+lm(Flowers ~ Light*Timing, data = flowers) |>
+  anova() |>
+  tidy()
+
+data(ironpot)
+
+lm(Iron ~ Pot*Food, data = ironpot) |>
+  anova() |>
+  tidy()
+```
+
+- Anemia, caused by iron deficiency, is a common form of malnutrition in developing countries
+- Does iron content in cooked food depend on the type of pot?
+- Do the results depend on the type of food?
+- Data from Adish et al. (1999) [^1]
+- `ironpot` dataset from `HH` package
+
+[^1]: Adish, A.A., Esrey, S.A., Gyorkos, T.W., Jean-Baptiste, J., Rojhani, A., 1999. Effect of consumption of food cooked in iron pots on iron status and growth of young children: a randomized trial, Lancet 353, Pp. 712-716.
+
+---
+
+- Response: `Iron` (mg per 100 g of food)
+- Two Treatment factors:
+
+  - `Pot` with 3 levels ($a=3$): "Aluminum", "Clay", "Iron"
+  - `Food` with 3 levels ($b=3$): "meat", "legumes", "vegetables"
+  
+- Meat, legume, and vegetable dishes cooked according to recipes from Ethiopian Nutritional Institute
+- Each dish was cooked 4 times in each type of pot (4 experimental units per cell, 9 cells)
+
+## Additive Statistical Model
+
+**Additive model** for the $k$th observation at the $i$th level of factor $A$ and the $j$the level of factor $B$
+
+$$y_{ijk}=\mu+\alpha_i+\beta_j+\varepsilon_{ijk}$$
+
+- $\mu$ is the overall/grand mean
+- $\alpha_i$ is the differential effect of the $i$th level of treatment $A$
+- $\beta_j$ is the differential effect of the $j$th level of treatment $B$
+- $\varepsilon_{ijk}\sim N(0,\sigma^2)$ represents the error
+
+## Hypothesis Tests
+
+- There are two null-hypotheses of interest
+- For type of pot:
+
+  - $H_0: \alpha_1 = \alpha_2 = \alpha_3 = 0$
+  - $H_A:$ At least one $\alpha_i$ is different
+  
+- For type of food:
+
+  - $H_0: \beta_1 = \beta_2 = \beta_3 = 0$
+  - $H_A:$ At least one $\beta_i$ is different
+
+## EDA
+
+::: panel-tabset
+### Pot Type
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Iron content in food cooked in different types of pots."
+
+ironpot |>
+  ggplot(aes(Pot, Iron)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+### Food Type
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Iron content of different types of cooked food."
+
+ironpot |>
+  ggplot(aes(Food, Iron)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+### Both
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Iron content of different types of food cooked in different types of pots."
+
+ironpot |>
+  ggplot(aes(Food, Iron, color = Pot)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+:::
+
+## ANOVA Table (Additive Model)
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Iron ~ Pot + Food, data = ironpot) |>
+  anova() |>
+  tidy()
+```
+
+
+## Does order matter?
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Iron ~ Pot + Food, data = ironpot) |>
+  anova() |>
+  tidy()
+```
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Iron ~ Food + Pot, data = ironpot) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+- Due to the experimental design, there is no association between the treatment factors
+- There are the same number of replicates of each dish cooked with each type of pot
+- As a result, the order that the treatment variables enter the model does not matter
+
+## Conclusions based on additive model
+
+- Using the additive model, we would conclude that there is convincing evidence of an effect for both food type and pot type
+- However, the additive model assumes that the effect of pot type is the same for each food type
+- This does not appear to be the case
+
+---
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Iron content of different types of food cooked in different types of pots."
+
+ironpot |>
+  ggplot(aes(Food, Iron, color = Pot)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+## Statistical Model with Interaction
+
+Statistical model with **interaction**
+
+$$y_{ijk}=\mu+\alpha_i+\beta_j+(\alpha\beta)_{ij}+\varepsilon_{ijk}$$
+
+- $\mu$ is the overall/grand mean
+- $\alpha_i$ is the differential effect of the $i$th level of treatment $A$
+- $\beta_j$ is the differential effect of the $j$th level of treatment $B$
+- $(\alpha\beta)_{ij}$ models the possible interaction between treatment $A$ and $B$
+- $\varepsilon_{ijk}\sim N(0,\sigma^2)$ represents the error
+
+---
+
+- For example, if cooking a dish in an iron pot ($i=3$) raises the iron level more for meat ($j=2$) than it does for legumes or vegetables, then we would expect $(\alpha\beta)_{3,2}>0$
+- Treatments $A$ and $B$ **interact** if the difference in response between two levels of $A$ depends on the level of $B$
+- If an interaction is present, it is inappropriate to use an additive model
+
+## Properties of Interaction Model
+
+- The interaction coefficients satisfy $$\sum_{i=1}^a(\alpha\beta)_{ij}=\sum_{j=1}^b(\alpha\beta)_{ij}=0$$
+- The model can be written more simply as
+$$y_{ijk}=\mu_{ij}+\varepsilon_{ijk}$$
+where $\mu_{ij}$ is the mean for level $i$ of treatment $A$ and level $j$ of treatment $B$
+
+## Testing for an Interaction
+
+- Test for an interaction using the hypotheses
+
+
+  - $H_0: (\alpha\beta)_{ij} = 0,$ for all $i=1\ldots a$, $j=1\ldots b$
+  - $H_A:$ At least one $(\alpha\beta)_{ij}$ is different
+  
+- If interaction is present, we do not test for main effects
+- If there is not a significant interaction, we can drop the interaction and use the additive model instead
+- We can only test for an interaction if there is replication, otherwise there are not enough degrees of freedom
+
+## ANOVA table with interaction
+
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Iron ~ Pot * Food, data = ironpot) |>
+  anova() |>
+  tidy()
+```
+
+ANOVA table key ($n$ = number of observations in each cell)
+
+::: {style="font-size: 18px"}
+
+| term | df | sumsq | meansq | statistic |
+|--|:--:|:--:|:--:|:--:|
+| *Treatment A* | $df_A=a-1$ | $SSA$ | $MSA=SSA/df_A$ | $F=MSA/MSE$ |
+| *Treatment B* | $df_B=b-1$ | $SSB$ | $MSB=SSB/df_B$ | $F=MSB/MSE$ |
+| *Interaction AB* | $df_{AB}=(a-1)(b-1)$ | $SSAB$ | $MSAB=SSAB/df_{AB}$ | $F=MSAB/MSE$ |
+| Residuals (error) | $df_E=ab(n-1)$ | $SSE$ | $MSE=SSE/df_E$ |  |
+
+:::
+
+---
+
+- There is a significant interaction between food type and plot type
+- There is convincing evidence that the response of iron content to pot type depends on the type of food
+
+## Interaction sum of squares
+
+- The model predicts the response (iron content) for an observation with level $i$ for treatment $A$ and level $j$ for treatment $B$ using the corresponding cell sample mean
+$$\widehat{y_{ijk}}=\bar{y}_{ij}$$
+- The sum of squares for the interaction term is
+$$SSAB = n\sum_{i=1}^{a}\sum_{j=1}^{b}\left(\bar{y}_{ij}-\bar{\bar{y}}\right)^2-SSA - SSB$$
+
+## Cell Means
+
+- When an interaction is present we report the cell means
+- We can make a table of the cell means in R
+
+```{r}
+#| include: true
+#| echo: true
+
+ironpot |>
+  group_by(Pot, Food) |>
+  summarize(mean = mean(Iron)) |>
+  pivot_wider(names_from = Pot, names_prefix = "Pot_",
+              values_from = mean)
+```
+
+## Interaction plot
+
+- An **interaction plot** shows how the cell means vary with respect to the levels of one of the treatments
+- Separate line plots for each level of the other treatment
+
+---
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Interaction plot for food type and pot type."
+
+ironpot |>
+  group_by(Pot, Food) |>
+  summarize(mean = mean(Iron)) |>
+  ggplot(aes(Pot, mean, color = Food, group = Food)) +
+  geom_point() +
+  geom_line() +
+  labs(y = "Mean Iron Content") +
+  theme_minimal()
+```
+
+## Interaction Effects
+
+- **Interaction effects** compare cell means across levels of both factors
+- For example, $$(\bar{y}_{12}-\bar{y}_{32})-(\bar{y}_{13}-\bar{y}_{33})=(2.06-4.68)-(1.23-2.79) = -1.06$$ is the interaction effect that compares the difference in cell means for aluminum ($i=1$) and iron ($i=3$) pots across the meat ($j=2$) and vegetable ($j=3$) food types
+
+## Toothbrushes
+
+- Is there a difference in the effectiveness of different types of toothbrushes in removing plaque?
+- Do the results depend on sex of the toothbrusher?
+- `tootbrush` dataset from `GLMsData` package
+
+---
+
+- Response: `plaque_rem` (difference in a plaque index after brushing - before brushing)
+- Independent variables:
+
+  - `Sex` with 2 levels ($a=2$): "F", "M"
+  - `Toothbrush` with 2 levels ($b=2$): "Conventional", "Hugger"
+  
+---
+
+- There is not a significant interaction
+- We should consider an additive model instead
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(plaque_rem ~ Sex * Toothbrush, data = toothbrush) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+- There is convincing evidence of an association between sex and the amount of plaque removed
+- However, we are unable to reject the null hypothesis for the effect of toothbrush type
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(plaque_rem ~ Sex + Toothbrush, data = toothbrush) |>
+  anova() |>
+  tidy()
+```
+
+## Main effects
+
+- The **main effects** compare the marginal means for one factor
+- For example, $\bar{y}_{1.}-\bar{y}_{2.}$ compares means for females ($i=1$) and males ($i=2$)
+- And, $\bar{y}_{.1}-\bar{y}_{.2}$ compares means for conventional toothbrushes ($j=1$) and hugger toothbrushes ($j=2$)
+- It is inappropriate to consider main effects when there is an interaction
+
+---
+
+- We can use the `TukeyHSD` function calculate the main effects, including confidence intervals
+- This is also appropriate for follow-up tests comparing pairs of marginal means (when there are more than 2 levels)
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+aov(plaque_rem ~ Sex + Toothbrush, data = toothbrush) |>
+  TukeyHSD()
+```
+

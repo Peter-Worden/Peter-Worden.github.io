@@ -1,0 +1,395 @@
+---
+title: "Exploring Categorical Data"
+subtitle: |
+  | IMS1 Ch. 4 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Comic Characters
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(tidytuesdayR)
+library(knitr)
+library(kableExtra)
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+comics <- read_csv("data/comics.csv") |> 
+  filter(!is.na(align), 
+         !is.na(id), 
+         !is.na(gender)) |>
+  droplevels()
+```
+
+- 15,182 comic characters from DC and Marvel comics
+- 11 variables, including
+
+  - name
+  - identity (id) gives information about personal identity (e.g., identity is kept secret)
+  - alignment (align) gives information about whether character is good, bad, etc
+
+## Data Sets in R
+
+- We can explore data from a variety of sources using R
+- There are several data sets that are included with R or R packages
+- For example, `iris` is a built-in data set with observations of several variables for 150 iris flowers
+- We can use the `data` command to load the `iris` data
+
+```{r}
+#| include: true
+#| echo: true
+
+data(iris)
+```
+
+## Viewing a Data Frame in R
+
+- After we have loaded a data set, we can view it by typing its name into R and hitting 'return'
+
+```{r}
+#| include: true
+#| echo: true
+
+iris
+```
+
+---
+
+- Another way to view a data frame in R is using the `glimpse` function from the `tidyverse` package
+
+::: {style="font-size: 90%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+library(tidyverse)
+
+glimpse(iris)
+```
+
+:::
+
+---
+
+- Comic character data is in a data set called `comics`
+- Let's glimpse the data
+- What is the sample size?
+- How many variables are there?
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+glimpse(comics)
+```
+
+:::
+
+## Describing categorical data
+
+- We can summarize a single categorical variable using a **frequency table**
+- Counts the number of observations for each level of the variable
+
+```{r}
+#| include: true
+#| echo: false
+
+comics |>
+  count(id) |>
+  bind_rows(tibble(id = "Total", n = 15128)) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      col.names = c("identity", "count"),
+      format.args = list(big.mark = ',')) |>
+  kable_styling(font_size = 28) |>
+  row_spec(5, bold = T)
+```
+
+---
+
+- We can also calculate proportions for each of the levels
+
+```{r}
+#| include: true
+#| echo: false
+
+comics |>
+  count(id) |>
+  mutate(n = n/sum(n)) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      col.names = c("identity", "proportion"),
+      digits = 3,
+      format.args = list(big.mark = ',')) |>
+  kable_styling(font_size = 28)
+```
+
+## Visualizing categorical data
+
+- We can use a bar plot to visualize categorical data
+- We will use `ggplot` to create plots in R
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+#| fig-cap: "Bar plot showing frequencies of levels of identity variable"
+
+ggplot(data = comics, mapping = aes(x = id)) +
+  geom_bar()
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+#| fig-cap: "Bar plot showing frequencies of levels of identity variable"
+
+ggplot(data = comics, mapping = aes(x = id, fill = id)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Summarizing two categorical variables
+
+- A **contingency table** is a table that can be used to summarize two categorical variables
+- Each value is a count of the number of times a variable outcome combination occurs
+- Usually includes row and column totals as well (**marginal totals**)
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: "Contingency table for identity and alignment"
+
+col_tots <- comics |>
+  count(align, id) |>
+  pivot_wider(names_from = id, values_from = n, values_fill = 0) |>
+  mutate(Total = `No Dual` + Public + Secret + Unknown) |>
+  summarize(align = "Total", 
+            `No Dual` = sum(`No Dual`),
+            Public = sum(Public),
+            Secret = sum(Secret),
+            Unknown = sum(Unknown),
+            Total = sum(Total))
+
+comics |>
+  count(align, id) |>
+  pivot_wider(names_from = id, values_from = n, values_fill = 0) |>
+  mutate(Total = `No Dual` + Public + Secret + Unknown) |>
+  bind_rows(col_tots) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      digits = 0,
+      format.args = list(big.mark = ',')) |>
+  kable_styling(font_size = 28) |>
+  row_spec(5, bold = T) |>
+  column_spec(6, bold = T)
+```
+
+---
+
+- It is also useful to create contingency tables with proportions
+- The simplest version is obtained by dividing each count by the grand total
+- In this case values in table sum to 1
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: "Proportion of outcomes for each combination of allignment and identity"
+
+comics |>
+  count(align, id) |>
+  mutate(prop = n/sum(n)) |>
+  pivot_wider(id_cols = align, names_from = id, values_from = prop, values_fill = 0) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      digits = 4,
+      format.args = list(big.mark = ',', scientific= FALSE)) |>
+  kable_styling(font_size = 28)
+```
+
+- What does the value 0.0299 mean?
+
+## Conditional proportions
+
+- We can also create tables of **conditional proportions** than can be helpful to explore associations between the variables
+- We need to decide whether the proportions should be conditioned on rows (divide counts by row totals) or columns (divide counts by colum totals)
+- If conditioned on rows, proportions sum to 1 along rows
+- If conditioned on columns, proportions sum to 1 along columns
+
+---
+
+- These proportions are conditioned on rows (alignment)
+- Allows us to compare proportions of identity types between different alignment groups
+- For example, we can see that about 63% of *bad* characters have *secret* identities whereas only about 41% of *good* characters have *secret* identities.
+
+```{r}
+#| include: true
+#| echo: false
+
+comics |>
+  count(align, id) |>
+  group_by(align) |>
+  mutate(prop = n/sum(n)) |>
+  pivot_wider(id_cols = align, names_from = id, values_from = prop, values_fill = 0) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      digits = 4,
+      format.args = list(big.mark = ',', scientific= FALSE)) |>
+  kable_styling(font_size = 28)
+```
+
+---
+
+- These proportions are conditioned on columns (identity)
+- Allows us to compare proportions of alignment types between different identity groups
+- For example, we can see that about 57% characters with *secret* identities are *bad*, whereas only about 32% of characters with *secret* identities are *good*.
+
+```{r}
+#| include: true
+#| echo: false
+
+comics |>
+  count(align, id) |>
+  group_by(id) |>
+  mutate(prop = n/sum(n)) |>
+  pivot_wider(id_cols = align, names_from = id, values_from = prop, values_fill = 0) |>
+  kbl(booktabs = TRUE, escape = FALSE,
+      digits = 4,
+      format.args = list(big.mark = ',', scientific= FALSE)) |>
+  kable_styling(font_size = 28)
+```
+
+## Visualizing two categorical variables
+
+- There are different ways to visualize two categorical variables using bar plots
+- We can create **stacked** bar plot
+- Colors show how composition varies within each group
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = id, fill = align)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- We can also visualize the data using side-by-side (dodged) bar plots
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = id, fill = align)) +
+  geom_bar(position = "dodge") +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- We can also change the axis labels to be more descriptive
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = id, fill = align)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Character's Personal Identity",
+       fill = "Alignment of Character",
+       y = "Number of Characters") +
+  theme_minimal() +
+  theme(text = element_text(size = 18))
+```
+
+---
+
+- Another alternative is to use **faceted** bar plots
+- Facet according to one of the variables
+- A facet (subplot) is created for each level of that variable
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = id, fill = align)) +
+  geom_bar() +
+  facet_wrap(~align) +
+  theme_minimal() +
+  theme(text = element_text(size = 16))
+```
+
+---
+
+- A fourth type of bar plot we can use to visualize two categorical variables is a **standardized** (filled) bar plot
+- This shows conditional proportions (instead of counts) in a stacked format
+- We simply include the argument `position = "filled"` in the `geom_bar` function
+- The following proportions are conditioned on `id`
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = id, fill = align)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proportion of Characters") +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- We can take a different perspective by exchanging the roles of the variables
+- The following proportions are conditioned on `align`
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+comics |>
+  ggplot(aes(x = align, fill = id)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proportion of Characters") +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```

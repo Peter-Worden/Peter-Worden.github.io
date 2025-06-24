@@ -1,0 +1,760 @@
+---
+title: "Exploring Numerical Data"
+subtitle: |
+  | IMS1 Ch. 5
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Life Expectancies
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(tidytuesdayR)
+library(knitr)
+library(kableExtra)
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+life <- read_csv("data/life_exp.csv") |> 
+  mutate(
+    state = str_to_title(state),
+    county = str_to_title(county)
+    )
+```
+
+- Every county in the US (3,142 counties)
+- Variables include county name, state, average life expectancy (expectancy), median income (income)
+
+---
+
+- Life expectancy data data is in a data set called `life`
+- Let's glimpse the data
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+library(tidyverse)
+
+glimpse(life)
+```
+
+:::
+
+## Pipes in R
+
+- We will often use pipes to pass data to functions in R
+- Emphasizes the flow of data through a series of processing steps
+- The following code uses a pipe to glimpse the `life` data:
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+life |>
+  glimpse()
+```
+
+:::
+
+## Filtering data in R
+
+- We will focus on life expectancy in Massachusetts (14 counties)
+- We will filter the data to obtain a subset of the observations -- just the ones for Massachusetts counties
+- We give the filtered data set a new name
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma <- life |>
+  filter(state == "Massachusetts")
+```
+
+---
+
+- Let's glimpse the resulting data set
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  glimpse()
+```
+
+:::
+
+## Selecting columns
+
+- `filter` gives us a subset of the rows in a data frame
+- `select` gives us a subset of the columns
+- We are interested in the life expectancy in different MA counties
+- Let's select just the `county` and `expectancy` columns
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma <- life_ma |>
+  select(county, expectancy)
+```
+
+---
+
+- Let's glimpse the resulting data set
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  glimpse()
+```
+
+:::
+
+## Mutating columns
+
+- We can use the `mutate` function to create new columns from existing columns or to manipulate existing columns
+- Let's round the life expectancies to whole numbers
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma <- life_ma |>
+  mutate(expectancy = round(expectancy))
+```
+
+---
+
+- Let's glimpse the resulting data set
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  glimpse()
+```
+
+:::
+
+---
+
+- We can chain several operations together with pipes
+- Data flows from left to right through the pipeline
+- The following code chains all of the operations together that we just performed
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma <- life |>
+  filter(state == "Massachusetts") |>
+  select(county, expectancy) |>
+  mutate(expectancy = round(expectancy))
+```
+
+## Life Expectancies in MA Counties
+
+- Let's take a quick peak at a dotplot of life expectancies for the MA counties
+
+```{r}
+#| include: true
+#| echo: false
+
+life_ma |>
+  ggplot(aes(x = expectancy)) +
+  geom_dotplot(stackratio = 1.2) +
+  scale_y_continuous(NULL, breaks = NULL) + # hide meaningless y scale
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Summaries of numerical data
+
+- Measures of center
+
+  - mean
+  - median
+  
+- Percentiles/quantiles
+  - quartiles
+  - other percentiles
+
+- Measures of spread
+
+  - interquartile range
+  - standard deviation
+
+## Mean
+
+- If there are $n$ cases in a sample then the **sample mean** of the numeric variable $x$ is $$\bar{x}=\frac{x_1+x_2+\cdots+x_n}{n}$$
+- The sample mean is a measure of the center of the distribution of the data
+- The sample mean $\bar{x}$ (a statistic) gives us a point estimate of the population mean $\mu$ (a parameter)
+
+---
+
+- We can compute the mean of the life expectancy variable by extracting that column from the data and computing the mean.
+
+```{r}
+#| include: true
+#| echo: true
+
+mean(life_ma$expectancy)
+```
+
+---
+
+Or we can use the summarize function.
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(mean = mean(expectancy))
+```
+
+## Median
+
+- The **median** is the value that splits the data in half
+- 50% of the data fall below the median
+- We can also compute the median of the life expectancy data
+- We will add it to the summary
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(mean = mean(expectancy), median = median(expectancy))
+```
+
+---
+
+- Let's see where the mean and median fall on the dotplot
+- The mean is red and dashed. Note that it is pulled toward the thicker left tail of the distribution.
+
+```{r}
+#| include: true
+#| echo: false
+
+lma_mean <- mean(life_ma$expectancy)
+lma_med <- median(life_ma$expectancy)
+
+life_ma |>
+  ggplot(aes(x = expectancy)) +
+  geom_dotplot(stackratio = 1.2) +
+  geom_vline(xintercept = lma_mean, color = "red", linetype = "dashed") +
+  geom_vline(xintercept = lma_med, color = "blue") +
+  scale_y_continuous(NULL, breaks = NULL) + # hide meaningless y scale
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Group means
+
+- We can also compare means between different groups in the data
+- Let's compare the mean of the life expectancy variable between counties in West Coast states (California, Oregon, Washington) and counties that are not in West Coast states
+
+---
+
+- First we add a new variable to the full data set that indicates whether a county is in a West Coast state
+
+```{r}
+#| include: true
+#| echo: true
+
+life <- life |>
+  mutate(west_coast = if_else(state %in% c("California", "Oregon",
+                                           "Washington"),
+                              "yes",
+                              "no"))
+```
+
+---
+
+- Let's glimpse the resulting data set
+
+::: {style="font-size: 85%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+life |>
+  glimpse()
+```
+
+:::
+
+---
+
+- Next we group the data using the new `west_coast` variable
+- Then we use the `summarize` function to compute group means and medians
+- Is life expectancy higher in counties in west coast states?
+
+```{r}
+#| include: true
+#| echo: true
+
+life |>
+  group_by(west_coast) |>
+  summarize(mean = mean(expectancy), median = median(expectancy))
+```
+
+## Percentiles
+
+- The *X*th **percentile** is the value below which *X*% of the data fall
+- The median is the 50th percentile
+- Let's compute the 90th percentile of the life expectancy variable in the Massachusetts data
+
+```{r}
+#| include: true
+#| echo: true
+
+quantile(life_ma$expectancy, 0.9)
+```
+
+## Quartiles
+
+- The **first quartile** (Q1) is the 25th percentile, the value below which 25% of the data fall
+- The **third quartile** (Q3) is the 75th percentile, the value below which 75% of the data fall
+- The median is sometimes described as the second quartile (Q2)
+- Quartiles are often included in numerical summaries of a data set
+
+---
+
+- Let's add quartiles to our summary of the Massachusetts data
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(Q1 = quantile(expectancy, 0.25),
+            median = median(expectancy),
+            Q3 = quantile(expectancy, 0.75),
+            mean = mean(expectancy))
+```
+
+## Maximum and minimum values
+
+- Maximum and minimum values in a data set are often included numerical summaries as well
+- Let's add them to our summary of the Massachusetts data
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(min = min(expectancy),
+            Q1 = quantile(expectancy, 0.25),
+            median = median(expectancy),
+            Q3 = quantile(expectancy, 0.75),
+            max = max(expectancy),
+            mean = mean(expectancy))
+```
+
+---
+
+- Note that there is also a convenient `summary` function that we can use to summarize every variable in the data
+- However, this format is inconvenient to use in downstream computations.
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |> summary()
+```
+
+## Range
+
+- The simplest measure of spread/variability of a distribution of data is the **range**
+- It is simply the difference between the largest and smallest values
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(range = max(expectancy) - min(expectancy))
+```
+
+## Interquartile range
+
+- The **interquartile range** (IQR) is the difference Q3-Q1
+- The IQR will never be larger than the range!
+- It can be computed from the quartiles, or using the `IQR` function.
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(iqr = IQR(expectancy),
+            range = max(expectancy) - min(expectancy))
+```
+
+## Standard deviation
+
+- The most commonly used measure of variability is the **standard deviation**
+- The **deviation** of a single observation $i$ is the difference between the observed value and the mean, $x_i - \bar{x}$
+- The standard deviation describes the typical deviation of the data from the mean
+
+---
+
+- The **sample variance** is the average squared deviance $$s^2=\frac{(x_1-\bar{x})^2 + (x_2-\bar{x})^2 \cdots (x_n-\bar{x})^2}{n-1}$$
+- We divide by $n-1$ rather than $n$ (the sample size) to obtained an **unbiased estimate** of the **population variance** $\sigma^2$. Otherwise $s^2$ tends to underestimate $\sigma^2$
+- The **sample standard deviation** is $$s = \sqrt{s^2} = \sqrt{\frac{\sum_{i=1}^n(x_i-\bar{x})^2}{n-1}}$$
+
+---
+
+- For many numeric variables the following rules of thumb apply:
+
+  - Roughly 68% of the data fall within 1 standard deviation of the mean
+  - Roughly 95% of the data fall within 2 standard deviations of the mean
+
+---
+
+- We can use the `sd` function to compute the sample standard deviation
+
+```{r}
+#| include: true
+#| echo: true
+
+life_ma |>
+  summarize(sd = sd(expectancy),
+            iqr = IQR(expectancy),
+            range = max(expectancy) - min(expectancy))
+```
+
+## Identifying outliers using IQR
+
+- An **outlier** is an observation that is extreme relative to the rest of the data
+- There is no universally accepted method for identifying outliers
+- One common method that is also simple uses the IQR
+- With this method, a point is considered an outlier if it is larger than Q3 or smaller than Q1 by more than $1.5\times$IQR.
+
+---
+
+- Let's use this method to identify outliers in the life expectancy data for the whole country
+
+```{r}
+#| include: true
+#| echo: true
+
+iqr <- IQR(life$expectancy)
+q1 <- quantile(life$expectancy, 0.25)
+q3 <- quantile(life$expectancy, 0.75)
+
+life <- life |>
+  mutate(is_outlier = case_when(expectancy < q1 - 1.5*iqr ~ TRUE,
+                                expectancy <= q3 + 1.5*iqr ~ FALSE,
+                                TRUE ~ TRUE))
+```
+
+---
+
+- There are 12 counties identified as outliers
+- All of them have low life expectancies
+
+```{r}
+#| include: true
+#| echo: true
+
+life |>
+  filter(is_outlier) |>
+  select(-income, -west_coast)
+```
+
+## Cars
+
+```{r}
+#| include: true
+#| echo: false
+
+cars <- read_csv("data/cars04.csv", col_types = cols(
+   msrp = col_integer(),
+   dealer_cost = col_integer(),
+   ncyl = col_integer(),
+   horsepwr = col_integer(),
+   city_mpg = col_integer(),
+   hwy_mpg = col_integer(),
+   weight = col_integer(),
+   wheel_base = col_integer(),
+   length = col_integer(),
+   width = col_integer()
+ ))
+```
+
+- data on all new car models (428) in a certain year
+- 19 variables
+- includes weight, highway mpg (hwy_mpg), msrp, whether a pickup or not (pickup)
+- we will explore a variety of visualizations involving numerical variables
+
+---
+
+- Let's glimpse the data
+
+::: {style="font-size: 75%;"}
+
+```{r}
+#| include: true
+#| echo: true
+
+glimpse(cars)
+```
+
+:::
+
+## Dotplot
+
+- A **dotplot** represents each case with a dot
+- Dots are stacked on top of each other at the appropriate location on the x-axis
+- Let's create a dot plot of vehicle weights
+- By default ggplot does not produce a useful y-axis scale, so we hide it
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_dotplot(dotsize = 0.2, stackratio = 1.2) +
+  scale_y_continuous(NULL, breaks = NULL) + # hide meaningless y scale
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Skew and Symmetry
+
+- Note that the distribution of weights is **skewed right**, meaning that it has a thicker tail on the right side
+- A distribution with a thicker tail on the left is **skewed left**
+- A distribution that is roughly equal in both directions is called **symmetric**
+
+## Histogram
+
+- In a **histogram** data are aggregated into bins on the x-axis
+- The height of each bar is proportional to the number of cases in the bin
+- Let's create a histogram of vehicle weights
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_histogram() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- Rather than using the defualt values, we can also specify the number of bins or the bin width
+- Here we specify the number of bins
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_histogram(bins = 15) +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Density plot
+
+- In a **density plot** the shape of the distribution is represented using a smooth line (think of this as a smoothed out histogram)
+- Let's create a density plot of vehicle weights
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_density() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- The *bandwidth* controls the degree of smoothing and can be adjusted to emphasize different scales of variation in the data
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_density(bw = 100) +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Box plot
+
+- A **box plot** takes a different approach to visualizing the distribution of a numerical variable
+- Boxplots are constructed using summary statistics:
+
+  - The box extends from Q1 to Q3 with a vertical line at the median (Q2)
+  - Whiskers extend from the box to the smallest and largest values that are not outliers
+  - Outliers are plotted as individual points
+ 
+---
+
+- `ggplot` uses the $1.5\times$IQR rule to compute outliers
+- It is important to note that box plots can miss important characteristics of the distributions
+- For example, if the distribution is bimodal, then the box plot won't show it
+- Let's create a box plot of vehicle weights. Are there any outliers?
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight)) +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Scatter plot - visualizing 2 numerical variables
+
+- We can visualize two numeric variables using a scatter plot
+- Let's plot highway gas mileage against vehicle weight
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = weight, y = hwy_mpg)) +
+  geom_point() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Faceted histograms
+
+- We can visualize two variables, where one is numeric and the other is categorical using **faceted histograms**
+- We simply plot a separate histogram for each level of the categorical variable
+- Let's use a faceted histogram to visualize the distribution of highway mileage for vehicles that are pickups and vehicles that are not pickups
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = hwy_mpg)) +
+  geom_histogram() +
+  facet_wrap(~pickup, ncol = 1, scales = "free_y") +
+  theme(text = element_text(size = 20))
+```
+
+## Colored density plots
+
+- We can use colored density plots for a similar purpose-
+- By coloring the density plots according to the levels of the categorical variable, we can plot them on the same axes and still distinguish between the distributions
+- Let's use colored density plots to visualize the distribution of highway mileage for vehicles that are pickups and vehicles that are not pickups
+- The level of `alpha` controls the transparency of the plots
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = hwy_mpg, fill = pickup)) +
+  geom_density(alpha = 0.5) +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+## Transforming data
+
+- Sometimes it is helpful to **transform** a variable
+- For example, a *log* transformation is commonly applied to distributions that are strongly skewed to the right
+- The transformed variable is often more appropriate for analyses that use a mathematical model to approximate the distribution of the data
+- The `msrp` data is skewed right
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars |>
+  ggplot(aes(x = msrp)) +
+  geom_histogram() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```
+
+---
+
+- Let's create a new variable by taking the (natural) *log* of the `msrp` variable
+- The transformed variable has a more symmetric, bell-shaped distribution
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+cars <- cars |>
+  mutate(msrp_log = log(msrp))
+
+cars |>
+  ggplot(aes(x = msrp_log)) +
+  geom_histogram() +
+  theme_minimal() +
+  theme(text = element_text(size = 20))
+```

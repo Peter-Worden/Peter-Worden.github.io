@@ -1,0 +1,292 @@
+---
+title: "Hello Data"
+subtitle: |
+  | IMS1 Ch. 1 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Lending Club Loans
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(tidytuesdayR)
+library(knitr)
+library(kableExtra)
+```
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: Six loans from the loan50 dataset
+loan50 |>
+  select(loan_amount, interest_rate, term, grade, state, total_income, homeownership) |>
+  head(6) |>
+  kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 20)
+```
+
+- Random sample of 50 loans made through Lending Club platform
+- A **sample** is a subset of a larger group (the **population**)
+- The sample consists of the 50 loans. The population is all loans made through the platform 
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: Six loans from the loan50 dataset
+loan50 |>
+  select(loan_amount, interest_rate, term, grade, state, total_income, homeownership) |>
+  head(6) |>
+  kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 20)
+```
+
+- Data organized in a table called a **data frame**
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: Six loans from the loan50 dataset
+loan50 |>
+  select(loan_amount, interest_rate, term, grade, state, total_income, homeownership) |>
+  head(6) |>
+  kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 20)
+```
+
+- Each row represents a single **case** or **observational unit**
+- Each column represents a **variable**, corresponding to a loan characteristic. E.g.,
+
+  - `loan_amount` (amount of loan in USD)
+  - `term` (number of months of the loan) 
+  - `grade` (related to likelihood of being repaid)
+
+
+## Summary Statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+mean_loan <- loan50 |>
+  summarize(mean = mean(loan_amount)) |>
+  pull()
+```
+
+- A **summary statistic** is a single number that summarizes data from a sample
+- Mean loan amount ($`r format(round(mean_loan, 2), nsmall=2, big.mark=",")`) is a summary statistic
+- Summary statistics can be organized in tables
+
+```{r}
+#| include: true
+#| echo: false
+
+loan50 |>
+  group_by(grade) |>
+  summarize(mean = mean(interest_rate)) |>
+  kbl(booktabs = TRUE, escape = FALSE, digits = 1,
+      col.names = c("grade", "mean interest rate")) |>
+  kable_styling(font_size = 24)
+```
+
+## Association
+
+- If there is a relationship between two variables, we say that the variables are **associated**
+- Interest rate and loan grade appear to be associated
+- If there is no relationship between two variables, we say the variables are **independent**
+
+## Variable Types
+
+- A **numerical** variable takes on values that are described using numbers that make sense to add, subtract, average, etc
+- A **categorical** variable takes on values that indicate different levels or categories 
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: Six loans from the loan50 dataset
+loan50 |>
+  select(loan_amount, interest_rate, term, grade, state, total_income, homeownership) |>
+  head(6) |>
+kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 20)
+```
+
+Loan data variable types:
+
+::: {style="font-size: 50%;"}
+
+| Variable | Type |
+|--|--|
+| loan_amount | numerical |
+| interest_rate | numerical |
+| term | numerical |
+| grade | categorical |
+| state | categorical |
+| total_income | numerical |
+| homeownership | categorical |
+
+:::
+
+---
+
+- Numerical variables can be further broken down into
+
+  - **discrete**: takes on discrete values (with jumps between consecutive values)
+  - **continuous**: can take on any value within a range
+
+- Categorical variables can be further broken down into
+
+  - **ordinal**: levels have a natural ordering
+  - **nominal**: levels do not have a natural ordering
+
+---
+
+![Variable types. From IMS1 Fig. 1.1.](https://openintro-ims.netlify.app/01-data-hello_files/figure-html/variables-1.png)
+
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: Six loans from the loan50 dataset
+loan50 |>
+  select(loan_amount, interest_rate, term, grade, state, total_income, homeownership) |>
+  head(6) |>
+kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 20)
+```
+
+Loan data variable types:
+
+::: {style="font-size: 50%;"}
+
+| Variable | Type |
+|--|--|
+| loan_amount | numerical, continuous |
+| interest_rate | numerical, continuous |
+| term | numerical, discrete |
+| grade | categorical, ordinal |
+| state | categorical, nominal |
+| total_income | numerical, continuous |
+| homeownership | categorical, nominal |
+
+:::
+
+## Scatterplots
+
+- The relationship between two numerical variables can be visualized using a **scatterplot**
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatterplot showing loan amount vs. income."
+
+loan50 |>
+  ggplot(aes(total_income, loan_amount)) +
+  geom_point() +
+  theme_minimal() +
+  theme(text = element_text(size=20))
+```
+
+## Direction of association
+
+- Two numerical variables are said to have a **positive association** if the values of one variable tend to be higher when the values of the other variable are higher
+- Two numerical variables are said to have a **negative association** if the values of one variable tend to be lower when the values of the other variable are higher
+- Loan amount and total income appear top be positively associated
+
+## Stents for Treating Strokes
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: First five patients
+
+set.seed(123)
+stent365[sample(1:nrow(stent365)),] |>
+  head(5) |>
+  kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 22)
+```
+
+- Researchers designed a study to study the effectiveness of stents in preventing strokes
+- 451 at-risk patients randomly assigned to receive stent (treatment) or not (control)
+- Outcome ("stroke" or "no event") recorded after 365 days
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: First five patients
+
+set.seed(123)
+stent365[sample(1:nrow(stent365)),] |>
+  head(5) |>
+  kbl(booktabs = TRUE, escape = FALSE) |>
+  kable_styling(font_size = 22)
+```
+
+- What are the cases?
+- What are the variables?
+- What are the variable types?
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| tbl-cap: "Summary of results for stent study"
+
+stent365 |>
+  group_by(group) |>
+  summarize(stroke = sum(outcome == "stroke"),
+            nostroke = sum(outcome == "no event")) |>
+  kbl(booktabs = TRUE, escape = FALSE, digits = 1,
+      col.names = c("Group", "Stroke", "No Event")) |>
+  kable_styling(font_size = 28)
+```
+
+- The proportion that had a stroke in the treatment group was 45/119 = 0.20
+- The proportion that had a stroke in the control group was 45/119 = 0.12
+- Does there appear to be an association between group and outcome?
+
+## Variable Roles
+
+- In some cases we may think that the one variable affects the other variable
+- We say that the **explanatory variable** affects the **response variable**
+- In the stent study, the group (treatment or control) is the explanatory variable, and the outcome is the response variable
+
+## Experiment vs. Observational Study
+
+- An **experiment** is a study in which researchers researchers manipulate or assign the values of the explanatory variable
+- The stent study is an experiment, because the researchers assign patients to the treatment or control group
+- When cases are randomly assigned to groups, the study is called a **randomized experiment**
+- An **observational study** is a study without such manipulation. The cases are *observed* as they are
+- The Lending Club data are from an observational study
+
+```{r}
+#| include: false
+#| echo: false
+
+#tt_out <- tt_load("2020-01-14")
+
+# tt_out
+
+#passwords <- tt_out |> 
+#  pluck("passwords")
+```

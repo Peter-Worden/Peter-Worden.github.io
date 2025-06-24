@@ -1,0 +1,384 @@
+---
+title: "Inference: Logistic Regression"
+subtitle: |
+  | IMS1 Ch. 26
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Discrimination in Hiring
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(broom)
+```
+
+-   Does perceived race or sex of an applicant affect job application callback rates?
+-   Data from an experiment ([Bertrand and Mullainathan, 2003](https://www.nber.org/papers/w9873))
+-   Researchers generated fake resumes with different characteristics
+
+------------------------------------------------------------------------
+
+-   Randomly assigned a name to each resume
+-   Name implied applicant's race (Black or White) and sex (male or female)
+-   Study preceded by separate survey to confirm association between names and race/sex
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: false
+#| echo: false
+
+data(resume)
+
+resume <- resume |>
+  select(received_callback, job_city, college_degree, years_experience,
+         honors, military, has_email_address, race, gender) |>
+  rename(sex = gender)
+```
+
+-   `resume` [^1] data from 4,870 applications
+-   30 variables, including
+
+[^1]: `resume` is from the *openintro* package
+
+::: {style="font-size: 20px"}
+| Variable            | Description                                                                        |
+|-----------------------|------------------------------------------------|
+| `received_callback` | Whether applicant received call from employer (0 = "no", 1 = "yes")                |
+| `job_city`          | Location of job (Boston or Chicago)                                                |
+| `college_degree`    | Indicator: whether resume listed college degree                                    |
+| `years_experience`  | Number of years of experience listed on resume                                     |
+| `honors`            | Indicator: whether resume listed some sort of honors (e.g., employee of the month) |
+| `military`          | Indicator: whether resume listed military experience                               |
+| `has_email_address` | Indicator: whether resume listed applicant's email address                         |
+| `race`              | Race of applicant (implied by first name)                                          |
+| `sex`               | Sex of applicant (implied by first name)                                           |
+:::
+
+## EDA
+
+```{r}
+#| include: false
+#| echo: false
+
+resume |>
+  group_by(race, sex) |>
+  summarize(n = n())
+```
+
+Sample sizes
+
+| race  | female | male |
+|-------|:------:|:----:|
+| black | 1,886  | 549  |
+| white | 1,860  | 575  |
+
+Proportions of applicants receiving calls back from employer
+
+```{r}
+#| include: false
+#| echo: false
+
+resume |>
+  group_by(race, sex) |>
+  summarize(callback = mean(received_callback == 1))
+```
+
+| race  | female |  male  |
+|-------|:------:|:------:|
+| black | 0.0663 | 0.0583 |
+| white | 0.0989 | 0.0887 |
+
+## Logistic Model
+
+-   Fit logistic model to predict whether applicant received call back using all predictors
+
+```{r}
+#| include: true
+#| echo: true
+
+mod <- glm(received_callback ~ .,
+           family = binomial, data = resume)
+
+tidy(mod)
+```
+
+------------------------------------------------------------------------
+
+The resulting model is
+
+::: {style="font-size: 30px"}
+$$\begin{array}{rcl}\log\left(\frac{\hat{p}}{1-\hat{p}}\right) &=& -2.66 \\ & - & 0.44\times job\_cityChicago \\ & - & 0.07 \times college\_degree \\ & + & 0.020 \times years\_experience \\ & + & 0.77 \times honors \\ & - & 0.34 \times military \\ & + & 0.22 \times has\_email\_address \\ & + & 0.44 \times racewhite \\ & - & 0.18 \times sexm\end{array} $$
+:::
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+
+tidy(mod)
+```
+
+-   Three of the predictors (`job_city`, `honors`, `race`) are statistically significant
+-   Focusing on `race`, it is very unlikely (p-value. \< 0.0001) to obtain a value of $b_{race}$ as as far from 0 as 0.44 if `received_callback` is unrelated to `race` ($\beta_{race}=0$) and the model already contains the other predictors
+
+## Manual Variable Selection
+
+-   Multicollinearity is not a problem here, because the data are from an experiment
+-   VIF are all near 1 (smallest possible value)
+
+```{r}
+#| include: true
+#| echo: true
+
+library(car)
+vif(mod)
+```
+
+------------------------------------------------------------------------
+
+-   The coefficient for `sex` is not significantly different from 0, so we drop it from the model
+-   The coefficients do not change much, because the predictors are not collinear
+
+```{r}
+#| include: true
+#| echo: false
+
+mod <- glm(received_callback ~ . - sex,
+           family = binomial, data = resume)
+
+tidy(mod)
+```
+
+------------------------------------------------------------------------
+
+-   The coefficient for `college_degree` is not significantly different from 0, so we drop it from the model
+
+```{r}
+#| include: true
+#| echo: false
+
+mod <- glm(received_callback ~ . - sex - college_degree,
+           family = binomial, data = resume)
+
+tidy(mod)
+```
+
+------------------------------------------------------------------------
+
+-   The coefficient for `military` is not significantly different from 0, so we drop it from the model
+
+```{r}
+#| include: true
+#| echo: false
+
+mod <- glm(received_callback ~ . - sex - college_degree - military,
+           family = binomial, data = resume)
+
+tidy(mod)
+```
+
+------------------------------------------------------------------------
+
+-   The coefficient for `has_email_address` is not significantly different from 0, so we drop it from the model
+-   The remaining coefficients are all significant
+
+```{r}
+#| include: true
+#| echo: false
+
+mod <- glm(received_callback ~ . - sex - college_degree - military - has_email_address,
+           family = binomial, data = resume)
+
+tidy(mod)
+```
+
+## Spam
+
+```{r}
+#| include: false
+#| echo: false
+
+data(email)
+
+email <- email |>
+  select(spam, to_multiple, attach, winner, format, re_subj, exclaim_mess, number)
+```
+
+-   We would like to create a model that predicts whether an email is spam or not
+-   `email` [^2] data from 3,921 emails
+
+[^2]: `email` is from the *openintro* package
+
+## Variables
+
+::: {style="font-size: 20px"}
+| Variable       | Description                                                                         |
+|-----------------------|------------------------------------------------|
+| `spam`         | Whether email was spam (0 = "no", 1 = "yes")                                        |
+| `to_multiple`  | Indicator: whether email was addressed to more than one recipient                   |
+| `attach`       | Number of files attached                                                            |
+| `winner`       | Indicator: whether the word "winner" appeared in the email                          |
+| `format`       | Indicator: whether email was written using HTML                                     |
+| `re_subj`      | Indicator: whether subject started with "Re:", "RE:", etc.                          |
+| `exclaim_mess` | Number of exclamation points in the message                                         |
+| `number`       | Factor: whether there was no number, a small number (\< 1 million), or a big number |
+:::
+
+About 9.4% of the emails were spam.
+
+## Logistic Model
+
+```{r}
+#| include: true
+#| echo: false
+
+mod <- glm(spam ~ . , family = binomial, data = email)
+
+tidy(mod)
+```
+
+All but one of the predictors (`exclaim_mess`) is statistically significant
+
+## Email Classification
+
+-   We would like to use the model to predict whether an email is spam or not
+-   The model predicts the *log-odds* that an email is spam
+-   One way to classify emails is to label an email as spam if the predicted probability exceeds 0.5
+-   Most emails, including spam, have a low predicted probability of being spam
+-   If we used a threshold of 0.5, only 1% of emails in the data would be classified as spam
+
+------------------------------------------------------------------------
+
+-   Instead, we will use a lower threshold, 0.1
+-   This allows us to classify more emails as spam
+-   We expect to correctly classify a larger number of emails as spam
+-   However, we also expect to incorrectly classify emails as spam that are not actually spam
+
+------------------------------------------------------------------------
+
+## Single-Predictor Model
+
+-   We will compare the full model to a model that uses a single predictor (`to_multiple`)
+-   We will use 4-fold cross-validation to evaluate the model performance
+
+```{r}
+#| include: true
+#| echo: false
+
+mod1 <- glm(spam ~ to_multiple, family = binomial, data = email)
+
+tidy(mod1)
+```
+
+## Cross-Validation Results
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidymodels)
+
+set.seed(8675309)
+
+email_folds <-
+  vfold_cv(email, v = 4)
+
+fn.full <- function(split){
+  data <- analysis(split)
+  newdata <- assessment(split)
+  
+  mod <- glm(spam ~ . , family = binomial, data = email)
+  
+  count_table <- mod |>
+    augment(newdata = newdata, type.predict = "response") |>
+    mutate(.pred = if_else(.fitted > 0.1, 1, 0)) |>
+    group_by(spam) |>
+    count(.pred) |>
+    ungroup()
+  
+  return(count_table)
+}
+
+
+
+fn.1 <- function(split){
+  data <- analysis(split)
+  newdata <- assessment(split)
+  
+  mod <- glm(spam ~ to_multiple, family = binomial, data = email)
+  
+  count_table <- mod |>
+    augment(newdata = newdata, type.predict = "response") |>
+    mutate(.pred = if_else(.fitted > 0.1, 1, 0)) |>
+    group_by(spam) |>
+    count(.pred) |>
+    ungroup()
+  
+  return(count_table)
+}
+
+
+## need to deal with table outputs
+email_folds <- email_folds |>
+  mutate(cm_full = map(splits, fn.full),
+         cm_1 = map(splits, fn.1))
+
+cm_full <- email_folds |>
+  select(id, cm_full) |>
+  unnest(cm_full) |>
+  group_by(spam, .pred) |>
+  summarize(n = sum(n)) |> 
+  ungroup()
+
+cm_1 <- email_folds |>
+  select(id, cm_1) |>
+  unnest(cm_1) |>
+  group_by(spam, .pred) |>
+  summarize(n = sum(n)) |> 
+  ungroup()
+```
+
+Confusion Matrix for Single-Predictor Model (holdouts)
+
+|           |               |          |
+|-----------|:---------------:|:----------:|
+|           | **Predicted** |          |
+| **Truth** | Spam          | Not Spam |
+| Spam      | 355           | 12       |
+| Not Spam  | 2946          | 608      |
+
+
+- Overall accuracy: 0.246
+- Not spam, predicted correctly: 0.171
+- Spam, predicted correctly: 0.967
+
+
+---
+
+Confusion Matrix for Full Model (holdouts)
+
+|           |               |          |
+|-----------|:---------------:|:----------:|
+|           | **Predicted** |          |
+| **Truth** | Spam          | Not Spam |
+| Spam      | 260           | 107       |
+| Not Spam  | 778          | 2776      |
+
+- Overall accuracy: 0.774
+- Not spam, predicted correctly: 0.781
+- Spam, predicted correctly: 0.708

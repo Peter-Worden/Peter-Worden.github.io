@@ -1,0 +1,415 @@
+---
+title: "Inference: Regression Single Predictor"
+subtitle: |
+  | IMS1 Ch. 24 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Body Measurements
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(magrittr)
+library(broom)
+library(infer)
+```
+
+- `bdims` [^1] body measurement dataset.
+
+- 507 physically active individuals (247 men, 260 women)
+- `age`, weight (`wgt`), height (`hgt`), `sex`, 21 body girth variables (e.g., hip girth)
+
+[^1]: `bdims` is from the *openintro* package.
+
+## Variability in Slopes
+
+- Slope can vary from sample to sample from the same population
+- We will explore this variability with random samples of 20 individuals from the `bdims` data
+
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+set.seed(8675309)
+bdims_samp20 <- NULL
+
+for(i in 1:100){
+  
+  samp20 <- bdims |> 
+    slice_sample(n = 20) |>
+    mutate(sample = as.character(i))
+  
+  bdims_samp20 <- bdims_samp20 |>
+    bind_rows(samp20)
+}
+```
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: Observations of `wgt` vs. `hgt` and least squares line for first sample of 20.
+
+bdims_samp20 |>
+  filter(sample %in% c("1")) |>
+  ggplot(aes(x = hgt, y = wgt, color = sample)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+Sample 1
+
+```{r}
+#| include: true
+#| echo: false
+
+bdims_samp20 |>
+  filter(sample == "1") %$%
+  lm(wgt ~ hgt) |>
+  tidy()
+```
+
+---
+
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: Observations of `wgt` vs. `hgt` and least squares lines for first two samples of 20.
+
+bdims_samp20 |>
+  filter(sample %in% c("1", "2")) |>
+  ggplot(aes(x = hgt, y = wgt, color = sample)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+Sample 2
+
+```{r}
+#| include: true
+#| echo: false
+
+bdims_samp20 |>
+  filter(sample == "2") %$%
+  lm(wgt ~ hgt) |>
+  tidy()
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: Observations of `wgt` vs. `hgt` and least squares lines for first three samples of 20.
+
+bdims_samp20 |>
+  filter(sample %in% c("1", "2", "3")) |>
+  ggplot(aes(x = hgt, y = wgt, color = sample)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+Sample 3
+
+```{r}
+#| include: true
+#| echo: false
+
+bdims_samp20 |>
+  filter(sample == "3") %$%
+  lm(wgt ~ hgt) |>
+  tidy()
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: Least squares lines for 100 random samples of 20.
+
+bdims_samp20 |>
+  ggplot(aes(x = hgt, y = wgt, group = sample)) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.2) +
+  theme_minimal()
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: Dotplot of slopes of least squares lines from 100 random samples.
+
+samp20_slopes <- bdims_samp20 |>
+  group_by(sample) |>
+  summarize(slope = lm(wgt ~ hgt) |> tidy() |> pull(estimate) %>% .[2])
+
+samp20_slopes |>
+  ggplot(aes(slope)) +
+  geom_dotplot(dotsize = 0.5, stackratio = 1.2) +
+  scale_y_continuous(NULL, breaks = NULL) +
+  theme_minimal()
+```
+
+
+```{r}
+#| include: true
+#| echo: false
+
+samp20_slopes |>
+  summarize(n = n(), mean = mean(slope), sd = sd(slope))
+```
+
+## Inference for a Slope
+
+- Recall that a linear model with one predictor has the form
+$$\widehat{y}=b_0+b_1x$$
+- $b_0$ and $b_1$ are point estimates of the intercept and slope based on the sample (statistics)
+- $\beta_0$ and $\beta_1$ are the population intercept and slope (parameters)
+
+---
+
+- We can construct confidence intervals for the slope, $\beta_1$
+- We can conduct hypothesis tests for the slope
+- Typically, the null hypothesis is
+$$H_0:\beta_1=0$$
+
+## Test Statistic for Slope
+
+- The test statistic for a slope is is a $T$ statistic
+$$T=\frac{\widehat{\beta}_1-\beta_{1,0}}{SE}$$
+- $\beta_{1,0}$ denotes the value of the slope under the null hypothesis (usually 0)
+- The formula for the standard error for the slope is $$SE = \frac{s}{\sqrt{\sum_{i=1}^n(x_i-\bar{x})^2}}$$
+
+---
+
+- $s$ estimates the standard deviation of the residuals, given by $$\begin{array}{rcl}s &=& \sqrt{\frac{SSE}{n-2}}\\ &=& \sqrt{\frac{\sum_{i=1}^n(y_i-\hat{y}_i)^2}{n-2}}\end{array}$$
+- Recall that $SSE$ is the **sum of squared errors**, also called the **residual sum of squares** ($RSS$)
+
+
+## Mathematical Model for Slope
+
+::: callout-note
+
+When the null hypothesis is true and the following conditions are met, the $T$ score has a $t$-distribution with $df=n-2$ degrees of freedom.
+
+1. Linearity
+2. Independent observations
+3. Normality of residuals
+4. Constant variability
+:::
+
+One way to check conditions is to look at residual plots.
+
+## Confidence Interval using Mathematical Model
+
+- If the technical conditions are met we can also use a $t$ distribution with $df=n-2$ to calculate a confidence interval for the slope
+- The interval is
+$$b_1\pm t^{\ast}_{df}\times SE$$
+- The standard error is the same as we used for the hypothesis test (use regression output)
+- The value of $t^{\ast}_{df}$ depends on the confidence level and degrees of freedom
+
+
+## Italian Restaurants in NYC
+
+- Is the price of a meal associated with food quality?
+- `restNYC` dataset[^2]
+- Customer survey from Italian restaurants in NYC ($n$ = 168)
+- `Price` (USD, includes tip and drink)
+- `Food` (rating: 1 to 30)
+- Hypothesis test: $H_0: \beta_1=0$, $H_A: \beta_1\neq0$
+- Confidence interval for slope
+
+```{r}
+#| include: false
+#| echo: false
+
+restNYC <- read_csv("data/restNYC.csv")
+```
+
+[^2]: `restNYC` data from [Sheather (2019)](https://gattonweb.uky.edu/sheather/book/)
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of `Price` vs `Food` with least squares line."
+
+restNYC |>
+  ggplot(aes(Food, Price)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+## Fitting a Linear Model
+
+- Least squares regression line
+$$\widehat{Price}=-17.8+2.94\times Food$$
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Price ~ Food, data = restNYC)
+```
+
+## Checking Conditions
+
+Linearity? Independent observations? Normality of residuals? Constant variability?
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Residual plot."
+
+lm1 <- lm(Price ~ Food, data = restNYC)
+
+augment(lm1) |>
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red", linewidth = 1.5, linetype = "dashed") +
+  theme_minimal()
+```
+
+## Hypothesis Test Using Mathematical Model
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Price ~ Food, data = restNYC) |>
+  tidy()
+```
+
+- $T$ = 10.4 
+- $df = 168-2=166$
+- p-value < 0.001
+
+## Randomization Test
+
+- We can randomly permute the value of the response (`Price`) to simulate the null hypothesis
+- Each time, compute the slope of the relationship between `Price` and `Food`
+
+```{r}
+#| include: true
+#| echo: true
+
+rest_perm <- restNYC |>
+  specify(Price ~ Food) |>
+  hypothesize("independence") |>
+  generate(reps = 1000, type = "permute") |>
+  calculate(stat = "slope")
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Histogram of slopes from different random permultations of `Price` (null distribution)."
+
+b1 <- lm1 |> tidy() |> pull(estimate) %>% .[2]
+
+rest_perm |>
+  ggplot(aes(stat)) +
+  geom_histogram() +
+  geom_vline(xintercept = b1, color = "red", linewidth = 1.5, linetype = "dashed") +
+  labs(x = "Slope from randomly permuted data",
+       title = "1,000 randomized slopes") +
+  theme_minimal()
+```
+
+p-value $\approx0$
+
+## CI Using Mathematical Model
+
+- A 95% confidence interval for the slope is given by
+$$b_1\pm t^{\ast}_{df}\times SE$$
+- $SE=0.283$ (from regression output)
+- Since, $df = 166$, $t^{\ast}_{df}=1.974$ for a 95% CI
+
+```{r}
+#| include: true
+#| echo: true
+
+qt(0.975, 166)
+```
+- The 95% CI is $2.94\pm1.974\times0.283$.
+- 95% confident that slope is between 2.38 and 3.49.
+
+## CI Using Randomization
+
+- We can also calculate a 95% bootstrap percentile confidence interval
+
+```{r}
+#| include: true
+#| echo: true
+
+rest_boot <- restNYC |>
+  specify(Price ~ Food) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "slope")
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Histogram of slopes from bootstrapped data."
+
+rest_boot |>
+  ggplot(aes(stat)) +
+  geom_histogram() +
+  labs(x = "Slope from bootstrapped data",
+       title = "1,000 bootstrapped slopes") +
+  theme_minimal()
+```
+
+---
+
+95% bootstrap percentile confidence interval: (2.38, 3.45)
+
+```{r}
+#| include: true
+#| echo: true
+
+rest_boot |>
+  get_confidence_interval(level = 0.95, type = "percentile")
+```
+
+## Conclusions
+
+- There is convincing evidence that there is an association between price and food rating in NYC Italian restaurants (p-value < 0.001)
+- We are 95% confident that the slope is between 2.38 and 3.45, meaning that the price of a meal increases by between \$2.38 and \$3.45 for each increase of 1 point in the food rating.
+
+---
+
+- We do not know if this is a random sample, so we should be careful about generalizing the results
+- This is an observational study, so we cannot conclude a cause-and-effect relationship between the variables
+
+<!-- Using the NYC Italian restaurants dataset (compiled by Simon Sheather in *A Modern Approach to Regression with R*),https://gattonweb.uky.edu/sheather/book/ `restNYC`, you will investigate the effect on the significance of the coefficients when there are multiple variables in the model. Recall, the p-value associated with any coefficient is the probability of the observed data given that the particular variable is independent of the response AND given that **all other variables are included in the model**. -->
+
+<!-- The following information relates to the dataset `restNYC` which is loaded into your workspace: -->
+<!-- - each row represents one customer survey from Italian restaurants in NYC -->
+<!-- - Price = price (in US$) of dinner (including tip and one drink) -->
+<!-- - Service = rating of the service (from 1 to 30) -->
+<!-- - Food = rating of the food (from 1 to 30) -->
+<!-- - Decor =  rating fo the decor (from 1 to 30) -->

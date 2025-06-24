@@ -1,0 +1,279 @@
+---
+title: "Hypothesis Testing with Randomization"
+subtitle: |
+  | IMS1 Ch. 11 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+    df-print: paged
+editor: visual
+---
+
+## Flavor Preferences
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+soda <- data.frame(
+  location = c(
+    rep("East", 28), rep("West", 19),
+    rep("East", 6), rep("West", 7)
+  ),
+  drink = c(rep("Cola", 47), rep("Orange", 13))
+) |>
+  arrange(location)
+```
+
+-   **Research question:** Do people on the East Coast have a higher preference for cola than people on the West Coast?
+-   `soda` dataset
+-   2 variables
+    -   *location*: East or West
+    -   *drink* preference: Orange or Cola
+-   60 individuals (43 from East, 26 from West)
+
+## Results (EDA)
+
+::: panel-tabset
+### Counts
+
+```{r}
+#| include: false
+#| echo: false
+
+opportunity_cost |>
+  count(group, decision) |>
+  pivot_wider(names_from = decision, values_from = n) |>
+  mutate(total = `buy video` + `not buy video`)
+```
+
+| location | Cola | Orange | total |
+|----------|:----:|:------:|------:|
+| East     |  28  |   6    |    34 |
+| West     |  19  |   7    |    26 |
+| total    |  47  |   13   |    60 |
+
+### Bar Plot
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Standardized barplot showing proportions of drink preferences"
+
+soda |>
+  ggplot(aes(x = location, fill = drink)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(values = c("#542a18", "#ffa500")) +
+  theme_minimal()
+```
+:::
+
+## Difference in proportions
+
+```{r}
+#| include: false
+#| echo: false
+
+obs_dif_prop <- soda |>
+  group_by(location) |>
+  summarize(prop = mean(drink == "Cola"))  |>
+  summarize(dif = -diff(prop)) |> #East - West
+  pull()
+```
+
+-   Success: drink = Cola
+-   Statistic of interest: difference in proportions $$\hat{p}_E-\hat{p}_W$$
+-   Observed difference: $$\frac{28}{34}-\frac{19}{26}=0.09276$$
+
+## Hypothesis Test
+
+-   From the sample it appears that there is a stronger preference for cola on the East Coast
+-   It may be that there is no real difference in preference in the population, and the observed difference is not surprising when selecting a sample of this size from the population
+-   A **hypothesis test** states these two possibilities formally as hypotheses then weighs them against each other using the results from the sample as evidence
+
+## Hypotheses
+
+-   The **null hypothesis**, denoted $H_0$, represents a skeptical perspective or a claim of no difference
+-   The **alternative hypothesis**, denote $H_A$, represents an alternative claim of difference.
+-   As statisticians, we usually establish hypotheses *before* viewing the data in order to avoid bias
+
+------------------------------------------------------------------------
+
+::: columns
+::: {.column width="50%"}
+In words:
+
+|     $H_0:$ Location has no
+|     effect on preference for
+|     cola over orange soda.
+
+|     $H_A:$ There is a higher
+|     preference for cola
+|     over orange soda on the
+|     East Coast than on the
+|     West Coast.
+:::
+
+::: {.column width="50%"}
+In symbols:
+
+|     $H_0: p_E - p_W = 0$
+|     $H_A: p_E - p_W > 0$
+:::
+:::
+
+## Null Distribution
+
+-   We **test the null hypothesis** by comparing the observed value of the statistic to a **null distribution**
+-   If the null hypothesis is *true* and we select different samples of the same size from the population, we would expect the value of the statistic to vary between samples
+-   The null distribution is the distribution that describes those values
+-   It is an example of a **sampling distribution** (distribution of a statistic)
+
+## Null Distribution Using Random Permutation
+
+-   Suppose that I suspect Hope students that sit in the front of class had a higher high school GPA than students that sit in the back
+-   I ask each of you to write your high school GPA on a sheet of paper and I calculate the difference in mean GPA for students in the front and in the back
+-   I want to know how that difference compares to differences I would measure if there is no difference
+
+------------------------------------------------------------------------
+
+-   The GPAs I collected is my best picture of what the distribution of GPAs is like at Hope
+-   To simulate the null hypothesis being true (no difference between front and back), I could mix up your GPAs and hand them back to you
+-   Then I could collect them again and measure the difference in means between front and back
+-   If I do this many times it will give me a good idea of what the differences would look like if the null hypothesis is true (the null distribution)
+
+------------------------------------------------------------------------
+
+-   Mixing up the values of the response variable as in the GPA example is called **random permutation**
+-   I can use random permutation to create a null distribution
+-   Usually we will do this with a computer, because we want to calculate the statistic for 1,000 or 10,000 random permutations
+
+------------------------------------------------------------------------
+
+Here is the original soda data with 5 random permutations.
+
+```{r}
+#| include: true
+#| echo: false
+set.seed(8675309)
+
+library(infer) 
+soda_perm5 <- soda |> 
+  specify(drink ~ location, success = "Cola") |>
+  hypothesize("independence") |>
+  generate(reps = 5, type = "permute") |>
+  ungroup() |>
+  mutate(id = rep(1:60, 5)) |>
+  pivot_wider(id_cols = id, names_from = replicate, values_from = drink, names_prefix = "randPerm")
+
+soda_perm5 <- soda |>
+  mutate(id = 1:60) |>
+  full_join(soda_perm5) |>
+  relocate(id)
+
+soda_perm5
+```
+
+------------------------------------------------------------------------
+
+-   Now let's simulate 100 samples assuming true null hypothesis
+-   We'll calculate a difference in proportions for each permutation
+-   Use `infer` package
+
+```{r}
+#| include: true
+#| echo: true
+set.seed(8675309)
+
+library(infer)
+soda_perm <- soda |> 
+  specify(drink ~ location, success = "Cola") |>
+  hypothesize("independence") |>
+  generate(reps = 100, type = "permute") |>
+  calculate(stat = "diff in props", order = c("East", "West"))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Dot plot of 100 differences in randomized proportions (null distribution), showing observed difference as dashed vertical line."
+
+soda_perm |>
+  ggplot(aes(x = stat)) +
+  geom_dotplot(dotsize = 0.3, stackratio = 1.5) +
+  geom_vline(xintercept = obs_dif_prop, color = "red", linetype = "dashed") +
+  labs(title = "100 differences in randomized proportions",
+       x = "difference in randomized proportions of people who prefer cola (East - West)") +
+  scale_y_continuous(NULL, breaks = NULL) +
+  theme_minimal()
+```
+
+## p-Value
+
+-   To test the null hypothesis ($p_E-p_W = 0$) we consider how probable it would be to get a difference in proportions that is at least as large as the observed difference if $H_0$ is true
+-   This probability is called a **p-value**
+-   We use the null distribution to calculate the p-value
+
+------------------------------------------------------------------------
+
+```{r}
+#| include: false
+#| echo: false
+
+soda_perm |>
+  summarize(n_extreme = sum(stat >= obs_dif_prop),
+          pval = mean(stat >= obs_dif_prop))
+```
+
+There are 28 differences in randomization proportions that are greater than or equal to the observed value (0.09276). So we estimate the p-value to be 28/100 = 0.28.
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Dot plot of 100 differences in randomized proportions (null distribution), showing observed difference as dashed vertical line."
+
+soda_perm |>
+  ggplot(aes(x = stat)) +
+  geom_dotplot(dotsize = 0.3, stackratio = 1.5) +
+  geom_vline(xintercept = obs_dif_prop, color = "red", linetype = "dashed") +
+  labs(title = "100 differences in randomized proportions",
+       x = "difference in randomized proportions of people who prefer cola (East - West)") +
+  scale_y_continuous(NULL, breaks = NULL) +
+  theme_minimal()
+```
+
+## Significance Level
+
+-   *Before* we conduct a study, we define a **significance level**, denoted $\alpha$
+-   We decide that in order to reject the null hypothesis as false, the p-value must be less than $\alpha$
+-   The significance level is the *standard of evidence* we will use to judge the null hypothesis
+-   We presume the null hypothesis is true, but we are willing to reject it if the evidence against it is strong enough (the p-value is less than $\alpha$)
+
+------------------------------------------------------------------------
+
+-   Typical values for $\alpha$ are 0.05 and 0.01
+-   Sometimes other values are used
+-   Unless otherwise noted, we will always use $\alpha = 0.05$
+
+## Conclusion
+
+-   In the soda example, the observed difference in proportions ($\hat{p}_E-\hat{p}_W = 0.09276$) does not allow us to reject the null hypothesis (p = 0.28) at the $\alpha = .05$ significance level.
+-   The difference in the proportions is not **statistically significant**
+-   This means that it is **plausible** that there is no difference in the proportions of people who prefer cola to orange soda between the East and West Coast.

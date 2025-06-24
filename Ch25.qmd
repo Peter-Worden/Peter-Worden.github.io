@@ -1,0 +1,683 @@
+---
+title: "Inference: Multiple Regression"
+subtitle: |
+  | IMS1 Ch. 25 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Interest Rates
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(openintro)
+library(magrittr)
+library(broom)
+library(infer)
+library(skimr)
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+loans <- loans_full_schema |>
+  rename(credit_checks = inquiries_last_12m) |>
+  select(interest_rate, debt_to_income, term, credit_checks)
+```
+
+- `loans` [^1] 
+- 10,000 loans through Lending Club, individuals lend to each other
+- Response: `interest_rate`
+- Predictors: `dept_to_income` (debt to income ratio), `term` (number of months for loan), `credit_checks` (number of credit inquiries in last 12 months)
+
+[^1]: `loans` is based on `loans_full_schema` from the *openintro* package.
+
+## Multiple Regression Output
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, data = loans) |> 
+  tidy()
+```
+
+Linear model: $$\begin{array}{rcl}\widehat{interest\_rate} &=& 4.31+0.0408\times debt\_to\_income\\ &+& 0.158 \times term +0.247\times credit\_checks\end{array}$$
+---
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, data = loans) |> 
+  tidy()
+```
+
+- A standard error and $T$-statistic is listed for each coefficient
+- We will not discuss the details of the standard error calculation (linear algebra)
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, data = loans) |> 
+  tidy()
+```
+
+- Hypothesis test for coefficient for each predictor:
+   - $H_0: \beta_1=0$, given `term` and `credit_checks` included in the model
+   - $H_0: \beta_2=0$, given `debt_to_income` and `credit_checks` included in the model
+   - $H_0: \beta_3=0$, given `debt_to_income` and `term` included in the model
+- For $k$ predictors, $df=n-k-1$
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, data = loans) |> 
+  tidy()
+```
+
+- All three coefficients are significant
+- For example, it would be extremely unlikely to obtain a value for the `debt_to_income` coefficient that is at least as extreme as 0.0408 if there is no relationship between interest rate an debt to income ratio
+
+
+## Interpreting Coefficients
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, data = loans) |> 
+  tidy()
+```
+
+- The model predicts that interest rate will increase by 0.0408 for each increase of 1 in the debt to income ration (assuming the other predictors are held constant)
+- Interest rate is predicted to increase by 0.247 for each additional credit check
+- Does this mean that credit checks are more important than debt to income ratio?
+
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+loans |>
+  select(-interest_rate) |>
+  skim()
+```
+
+It is not informative to compare coefficient values when the data are on different scales
+
+| predictor | mean | sd |
+|--|:--:|:--:|
+| `debt_to_income` | 19.3 | 15.0 |
+| `term` | 43.3 | 36 |
+| `credit_checks` | 1.96 | 2.3 |
+
+## Standardized Predictors
+
+- We can standardize the predictors by calculating the number of standard deviations each value is from the mean
+- The $i$th observation of the $j$th predictor $x_j$ is standardized as $$u_{ij}=\frac{x_{ij}-\bar{x}_j}{s_j}$$
+- The standardized predictors have mean = 0, standard deviation = 1
+
+---
+
+- Let's standardize the predictors for the interest rate example
+- We can use the `mutate` function
+
+```{r}
+#| include: true
+#| echo: true
+
+loans_standardized <- loans |>
+  mutate(debt_to_income = 
+           (debt_to_income - mean(debt_to_income, na.rm = TRUE))/
+           sd(debt_to_income, na.rm = TRUE)) |>
+  mutate(term = 
+           (term - mean(term, na.rm = TRUE))/
+           sd(term, na.rm = TRUE)) |>
+  mutate(credit_checks = 
+           (credit_checks - mean(credit_checks, na.rm = TRUE))/
+           sd(credit_checks, na.rm = TRUE))
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, 
+   data = loans_standardized) |> 
+  tidy()
+```
+
+- The intercept is the predicted interest rate when each of the predictors have their mean value
+- If debt to income ratio is increased by 1 standard deviations, interest rate is predicted to increase by 0.612 (holding other predictors constant)
+- Similar interpretation for other coefficients
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(interest_rate ~ debt_to_income + term + credit_checks, 
+   data = loans_standardized) |> 
+  tidy()
+```
+
+- Since all predictors are on the same scale, coefficient comparisons are more meaningful
+- E.g., `term` has the largest impact on predicted `interest_rate`
+- p-values have not changed
+
+## Coins
+
+```{r}
+#| include: false
+#| echo: false
+
+money <- tibble(
+  number_of_coins = c(9, 10, 3, 5, 10, 37, 28, 9, 11, 4, 6, 17, 15, 7, 9, 1, 5, 9, 36, 30, 47, 13, 5, 7, 18, 16),
+  number_of_low_coins = c(4, 8, 0, 4, 9, 34, 9, 3, 2, 2, 5, 12, 11, 4, 8, 0, 4, 9, 34, 9, 3, 2, 2, 5, 12, 11),
+  total_amount = c(1.37, 1.01, 1.5, 0.56, 0.61, 3.06, 5.42, 1.75, 5.4, 0.56, 0.34, 2.33, 3.34, 1.3, 1.2, 1.7, 0.86, 0.61, 2.96, 5.52, 8.95, 5.2, 1.56, 0.74, 1.83, 3.74)
+)
+```
+
+- Next we explore the `money` data set
+- Amount of money in different people's coin dishes (simulated data)
+- Response: `total_amount` (USD)
+- Predictors: `number_of_coins`, `number_of_low_coins` (pennies, nickels, dimes)
+- We will use this dataset to explore multiple linear regression with correlated predictors
+
+## Relationships between the variables
+
+- Of course, there is a relationship between the total amount and each of the predictors
+- The number of coins and the number of low coins are also correlated
+- **Multicollinearity** occurs when the predictor variables are correlated with themselves 
+
+---
+
+::: panel-tabset
+
+### total vs coins
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of `total_amount` vs. `number_of_coins`."
+
+money |>
+  ggplot(aes(number_of_coins, total_amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+### total vs. low coins
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of `total_amount` vs. `number_of_low_coins`."
+
+money |>
+  ggplot(aes(number_of_low_coins, total_amount)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme_minimal()
+```
+
+### coins vs low coins
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Scatter plot of `number_of_coins` vs. `number_of_low_coins`."
+
+money |>
+  ggplot(aes(number_of_coins, number_of_low_coins)) +
+  geom_point() +
+  theme_minimal()
+```
+
+```{r}
+#| include: false
+#| echo: false
+
+money |>
+  summarize(r = cor(number_of_coins, number_of_low_coins))
+```
+:::
+
+---
+
+- How is the multiple regression model affected by correlated predictors? $$\begin{array}{rcl}\widehat{total\_amount}&=&0.798 \\ &+& 0.206\times number\_of\_coins\\ &-& 0.160\times number\_of\_low\_coins\end{array}$$
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(total_amount ~ number_of_coins + number_of_low_coins,
+   data = money) |>
+  tidy()
+```
+
+---
+
+$$\begin{array}{rcl}\widehat{total\_amount}&=&0.798 \\ &+& 0.206\times number\_of\_coins\\ &-& 0.160\times number\_of\_low\_coins\end{array}$$
+
+- The relationship between the total amount and each predictor (when considered on its own) is positive
+- However, the coefficient for the number of low coins is negative in the multiple regression model
+- Why?
+
+## Intepreting Coefficients
+
+$$\begin{array}{rcl}\widehat{total\_amount}&=&0.798 \\ &+& 0.206\times number\_of\_coins\\ &-& 0.160\times number\_of\_low\_coins\end{array}$$
+
+- The predicted amount increases by $0.206 for each additional coin, while keeping the number of low coins the same. *A quarter is added.*
+- The predicted amount *decreases* by $0.160 for each additional low coin, while keeping the number of coins the same. *A quarter is replaced by a penny, nickel, or dime.*
+
+## Multicollinearity
+
+- Multicollinearity is common when there are multiple predictors, especially in observational studies
+- Indicates that the predictors include some redundant information
+- Makes it difficult to interpret coefficients
+- Often results in models with high $R^2$, but few coefficients significantly different from 0
+- Can be avoided with careful experimental design (more on this later)
+
+## Macroeconomic Data
+
+```{r}
+#| include: false
+#| echo: false
+
+data(longley)
+```
+
+- `longley` dataset [^3]
+- US macroeconomic data from 1947 to 1962 (n = 16)
+- Note that observations are dependent, because this is a time series
+
+[^3]: `longley` dataset is included in R.
+
+---
+
+- Response: `Employed`: number of people employed
+- Predictors:
+   - `GNP.deflator`: GNP adjusted for inflation
+   - `GNP`: Gross National Product
+   - `Unemployed`: Number of unemployed people
+   - `Armed.Forces`: Number of people in armed forces
+   - `Population`: Noninstitutionalized people at least 14 years old
+- Predictors are collinear
+
+---
+
+```{r}
+#| include: true
+#| echo: true
+
+library(GGally)
+longley |>
+  ggpairs() +
+  theme_minimal()
+```
+
+## Full Model
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Employed ~ ., data = longley) |>
+  tidy()
+```
+
+## VIF
+
+- The **variance inflation factor (VIF)** for the $i$th predictor is $$VIF_i=\frac{1}{1-R_i^2}$$
+- Here, $R_i^2$ is the $R^2$ obtained from for regression of predictor $i$ in terms of the other predictors
+- $R_i^2$ close to 1 indicates that predictor $i$ is closely related to the other predictors and is redundant $\rightarrow$ large $VIF_i$
+- $VIF_i>5$ is taken as an indication of collinearity
+
+---
+
+Variance inflation factors for `longley` data
+
+```{r}
+#| include: true
+#| echo: true
+
+library(car)
+lm(Employed ~ ., data = longley) |>
+  vif()
+```
+
+## Manual Variable Selection
+
+- We can use VIF and p-values to manually reduce the size of the model
+- Remove predictors with high VIF, high p-values
+- Before we start, note that adjusted $R^2$ for the full model is 0.992
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Employed ~ ., data = longley) |>
+  glance()
+```
+
+---
+
+Full Model (6 Predictors)
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ ., data = longley) |>
+  tidy()
+```
+
+VIF
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ ., data = longley) |>
+  vif()
+```
+
+- `Population` has a large p-value and large VIF
+- Eliminate it from the model
+
+---
+
+5 Predictor Model
+
+```{r}
+#| include: true
+#| echo: true
+
+lm(Employed ~ . - Population, data = longley) |>
+  tidy()
+```
+
+VIF
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ . - Population, data = longley) |>
+  vif()
+```
+
+- `GNP.deflator` has a large p-value and large VIF
+- Eliminate it from the model
+
+---
+
+4 Predictor Model
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ . - Population - GNP.deflator, data = longley) |>
+  tidy()
+```
+
+VIF
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ . - Population - GNP.deflator, data = longley) |>
+  vif()
+```
+
+- `GNP` has the largest p-value and large VIF
+- Eliminate it from the model
+
+---
+
+Final Model (3 Predictors)
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ Unemployed + Armed.Forces + Year, data = longley) |>
+  tidy()
+```
+
+VIF
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ Unemployed + Armed.Forces + Year, data = longley) |>
+  vif()
+```
+
+- All predictors have VIF < 5
+- All coefficients are significant
+
+---
+
+- Adjusted $R^2$ is 0.991, so model describes slightly less variability in employment than the full model
+- However, simple model with reduced/no collinearity is preferred
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(Employed ~ Unemployed + Armed.Forces + Year, data = longley) |>
+  glance()
+```
+
+## Palmer Penguins
+
+```{r}
+#| include: false
+#| echo: false
+
+library(palmerpenguins)
+data(penguins, package = "palmerpenguins")
+penguins <- penguins |>
+  select(-c(island, year)) |>
+  drop_na()
+```
+
+- `penguins` dataset [^4]
+- Measurements for three species of penguins from Palmer Archipelago
+
+[^4]: The `penguins` dataset is from the `palmerpenguins` package.
+
+---
+
+- Response: `body_mass_g`
+- Predictors:
+   - `species`: Adelie, Chinstrap, or Gentoo
+   - `bill_length_mm`
+   - `bill_depth_mm`
+   - `flipper_length_mm`
+   - `sex`: female or male
+
+---
+
+3 Predictor Model
+
+- I performed manual variable selection
+- Dropping `species` and `bill_length_mm` resulted in all predictors having VIF < 5 and all coefficiencts significantly different from 0
+
+```{r}
+#| include: false
+#| echo: false
+
+lm(body_mass_g ~ ., data = penguins) |>
+  tidy()
+
+lm(body_mass_g ~ ., data = penguins) |>
+  vif()
+
+lm(body_mass_g ~ . - species, data = penguins) |>
+  tidy()
+
+lm(body_mass_g ~ . - species, data = penguins) |>
+  vif()
+
+lm(body_mass_g ~ . - species - bill_length_mm, data = penguins) |>
+  tidy()
+
+lm(body_mass_g ~ . - species - bill_length_mm, data = penguins) |>
+  vif()
+```
+
+```{r}
+#| include: true
+#| echo: false
+
+lm(body_mass_g ~ . - species - bill_length_mm, data = penguins) |>
+  tidy()
+```
+
+VIF
+
+```{r}
+#| include: true
+#| echo: false
+lm(body_mass_g ~ . - species - bill_length_mm, data = penguins) |>
+  vif()
+```
+
+## Model Comparison
+
+- Does the simpler 3 predictor model predict `body_mass_g` as well as the full model?
+- We will also compare these two models to the best single predictor model, which uses `flipper_length_mm` as the predictor
+- We would like to compare how well each model performs on data that were not used to train/fit the model
+
+---
+
+One approach is to compare adjusted $R^2$
+
+::: {style="font-size: 20px"}
+
+| Model | predictors | adjusted $R^2$ |
+|--|--|:--:|
+| Full | `species`, `bill_length_mm`, `bill_depth_mm`, `flipper_length_mm`, `sex` | 0.873 |
+| 3 predictor | `bill_depth_mm`, `flipper_length_mm`, `sex` | 0.844 |
+| 1 predictor | `flipper_length_mm` | 0.758 |
+
+:::
+
+## Cross-Validation
+
+- Another approach is to use **cross-validation**
+- Divide the data into fourths (4-fold cross-validation)
+- We fit each model 4 times
+- Each time we hold out 1/4 of the data and fit the model to the remaining 3/4 of the data
+- Use the fitted model to predict `body_mass_g` on the 1/4 of the data we held back
+- Measure the prediction error (residual) on the holdout sample
+
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidymodels)
+
+set.seed(8675309)
+
+penguin_folds <-
+  vfold_cv(penguins, v = 4)
+
+fn.full <- function(split){
+  data <- analysis(split)
+  newdata <- assessment(split)
+  
+  lm1 <- lm(body_mass_g ~ ., data = data)
+  
+  sse <- lm1 |>
+    augment(newdata = newdata) |>
+    summarize(sse = sum(.resid^2)) |>
+    pull()
+  
+  return(sse)
+}
+
+fn.3 <- function(split){
+  data <- analysis(split)
+  newdata <- assessment(split)
+  
+  lm1 <- lm(body_mass_g ~ . - species - bill_length_mm, data = data)
+  
+  sse <- lm1 |>
+    augment(newdata = newdata) |>
+    summarize(sse = sum(.resid^2)) |>
+    pull()
+  
+  return(sse)
+}
+
+fn.1 <- function(split){
+  data <- analysis(split)
+  newdata <- assessment(split)
+  
+  lm1 <- lm(body_mass_g ~ flipper_length_mm, data = data)
+  
+  sse <- lm1 |>
+    augment(newdata = newdata) |>
+    summarize(sse = sum(.resid^2)) |>
+    pull()
+  
+  return(sse)
+}
+
+penguin_folds |>
+  mutate(sse_full = map_dbl(splits, fn.full),
+         sse_3 = map_dbl(splits, fn.3),
+         sse_1 = map_dbl(splits, fn.1)) |>
+  summarize(sse_full = sum(sse_full),
+            sse_3 = sum(sse_3),
+            sse_1 = sum(sse_1))
+```
+
+- Compare models using **cross-validation SSE** $$CV\,SSE=\sum_{i=1}^n(\hat{y}_{cv,i}-y_i)^2$$
+
+::: {style="font-size: 20px"}
+
+| Model | predictors | CV SSE |
+|--|--|:--:|
+| Full | `species`, `bill_length_mm`, `bill_depth_mm`, `flipper_length_mm`, `sex` | 28,105,231 |
+| 3 predictor | `bill_depth_mm`, `flipper_length_mm`, `sex` | 39,756,521 |
+| 1 predictor | `flipper_length_mm` | 52,576,385 |
+
+:::
+
+---
+
+- The full model has the smallest CV SSE
+- We expect the full model to perform better when predicting `body_mass_g` for penguins that were not used to fit the model
+
+
+

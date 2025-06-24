@@ -1,0 +1,255 @@
+---
+title: "Observational Studies and Stratification"
+subtitle: |
+  | Additional Topic 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+library(HH)
+```
+
+## Reducing Unexplained Variability
+
+- The primary role of blocking in experiments is to reduce the unexplained variability in the response
+- **Stratifying** plays a similar role in observational studies
+- Groups of observational units are formed with similar values of the **stratifying variable**
+- Stratifying variable is accounted for as a source of variability in the analysis (similar to blocking in experiment)
+
+
+## Confounding Variables
+
+- **Confounding variables** are associated with both the dependent variable and the independent variable
+- Confounders can obscure the true relationship between the variables of interest
+- In experiments, randomization ensures that treatment groups are similar in terms of confounding variables
+- This is not the case in observational studies
+- Often, the stratifying variable is a potential confounding variable
+
+<!-- ## kjklj -->
+
+
+<!-- ```{r} -->
+<!-- lm(income ~ race, data = acs12) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+
+
+<!-- ```{r} -->
+<!-- lm(income ~ edu + race, data = acs12) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- lm(income ~ race + edu, data = acs12) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+
+<!-- ## Smoking and birth weight -->
+
+<!-- ```{r} -->
+<!-- lm(weight ~ smoke, data = births) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- lm(weight ~ premature + smoke, data = births) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- lm(weight ~ smoke + premature, data = births) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- lm(weight ~ weeks + smoke, data = births) |> -->
+<!--   anova() |> -->
+<!--   tidy() -->
+<!-- ``` -->
+
+## Smoking and birth weight
+
+```{r}
+#| include: FALSE
+#| echo: FALSE
+
+data(births14)
+
+births14 <- births14 |>
+  drop_na(habit, weight, weeks, premie)
+```
+
+-   Do infants whose mothers smoke have a different mean birth weight than infants whose mothers do not smoke?
+-   `births14` [^1] dataset
+-   Random sample of 1,000 cases from US birth data set from 2014 (19 removed with missing values)
+-   `habit` is smoking habit ("smoker" or "nonsmoker")
+- `weight` is birth weight in pounds
+- `premie` birth is premature (premie) or full-term
+
+[^1]: `births14` is from the `openintro` package
+
+---
+
+- First, we will include smoking habit as a single explanatory variable (no stratifying variable)
+- Although it would be appropriate to compare means for smoking and non-smoking mothers using a t-test (see Ch 20 slides), an F-test gives us the same results
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ habit, data = births14) |>
+  anova() |>
+  tidy()
+```
+
+## `premie` as a Stratifying Variable
+
+- The length of the pregnancy is expected to explain some of the variation in birth weight
+- It also has the potential to be a confounding variable if there is an association between smoking and length of pregnancy
+- We will use `premie` as a stratifying variable in our analysis
+
+## Statistical Model with a Stratifying Variable
+
+Statistical model for the $k$th observation in group $i$ and stratum $j$,
+
+$$y_{ijk}=\mu+\alpha_i+\beta_j+\varepsilon_{ijk}$$
+
+- $\mu$ is the overall mean
+- $\alpha_i$ is the differential effect of group $i$
+- $\beta_j$ is the differential effect of stratum $j$
+- $\varepsilon_{ijk}\sim N(0,\sigma^2)$ is the noise
+
+## ANOVA Table
+
+- $SS_{premie}$ accounts for the effect of `premie`
+- $SS_{habit}$ accounts for both variables, but then $SS_{premie}$ is subtracted off
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ premie + habit, data = births14) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+- Interestingly, $p$-value for `habit` is higher when accounting for `premie` in the model
+- This is the opposite of what we would expect to see in an experiment, and is due to association between `premie` and `habit`
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ premie + habit, data = births14) |>
+  anova() |>
+  tidy()
+```
+
+---
+
+We can also see the effects of this association if we compare the coefficient of the corresponding linear models.
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ habit, data = births14) |>
+  tidy()
+```
+
+`habit` has a smaller effect when we account for `premie`
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ premie + habit, data = births14) |>
+  tidy()
+```
+
+
+## Association between `habit` and `premie`
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+
+births14 |>
+  ggplot(aes(habit)) +
+  geom_bar(aes(fill = premie), position = position_fill()) +
+  labs(y = NULL) +
+  theme_minimal()
+```
+
+---
+
+- Due to the association between `habit` and `premie` it is difficult to fully separate their effects on birth weight
+- E.g., whether the mother smokes or not *could* affect whether the baby is a premie or not which could impact weight
+- $SS_{habit}$ measures the variation in the response that is attributed to `habit` but does not include the variation that is jointly attributed to the two explanatory variables
+
+---
+
+- If we reverse the order of the variables, we can also measure the variation that is attributed to `premie` without variation that is jointly attributed to the two variables
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(weight ~ habit + premie, data = births14) |>
+  anova() |>
+  tidy()
+```
+
+
+
+## ANCOVA
+
+- In the previous analysis we used `premie` as a stratifying variable
+- The dataset also includes the variabe `weeks`, the length of the pregnancy in weeks
+- We can conduct an alternative analysis using `weeks` as a (numeric) covariate instead of stratifying by `premie`
+- Statistical model (parallel lines) for the $j$th observation in the $i$th group:
+$$y_{ij}=\mu + \alpha_i + \beta(X_{ij} - \bar{\bar{X}})+\varepsilon_{ij}$$
+---
+
+- `weeks` as a covariate explains more of the variation in the response than `premie` ($SS_{weeks} = 483$ vs. $SS_{premie}=374$)
+- The resulting model explains more of the variability in the response than the model that included `premie`, so $SSE$ is smaller
+- As a result, the $F$ statistic is larger, and the $p$-value is smaller
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+
+lm(weight ~ weeks + habit, data = births14) |>
+  anova() |>
+  tidy()
+```
+
+## Conclusions
+
+- Both analyses lead us to conclude that there is a significant association between smoking and birth weight when we also account for the length of pregnancies
+- We reach the same conclusion whether we treat the length of pregnancy as a categorical variable (`premie`) or a numeric variable (`weeks`)
+- Because this is an observational study, we cannot conclude that smoking causes a difference in birth weight
+- It is possible that there are other confounding variables that we have not accounted for in the model

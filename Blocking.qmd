@@ -1,0 +1,201 @@
+---
+title: "Blocking in Experiments"
+subtitle: |
+  | Additional Topic 
+  | Math 215
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+library(broom)
+library(HH)
+```
+
+## Experiments with two factors
+
+- A **factor** is a categorical variable that we think may explain some of the variability in the response variable
+- A **treatment factor** is a factor that we want to evaluate to see if there is an effect
+- A **blocking factor** is a factor that we believe will have an effect
+- The treatment factor is the factor of interest
+- The blocking factor is used to reduce the unexplained variability in the response
+
+---
+
+- An experiment with two factors may have two treatment factors (more on this later)
+- Or it may have a treatment factor and a blocking factor
+
+## Experimental Designs
+
+**Randomize complete block design (RCBD)**
+
+- 1 treatment factor with $t$ levels, 1 blocking factor with $b$ levels
+- Each block has exactly $t$ experimental units (one for each treatment level)
+- Experimental units in same block expected to respond similarly if treated similarly
+- **Matched pair design**: $t=2$
+- **Repeated measures design**: Each block is a single individual, subject to all $t$ treatments
+  
+---
+  
+**Factorial design** (more on this later)
+
+- More general than RCBD
+- Two or more factors
+- One or more observations per cell (replication)
+
+## Strawberries
+
+```{r}
+#| include: false
+#| echo: false
+
+strawberries <- read_tsv("data/StrawberryStorageRCBD.txt")
+```
+
+-   Does changing the air in which strawberries are stored affect the firmness of the berries?
+- Data from Smith and Skog (1992) [^1]
+- Inspired by an example from [Tintle et al. (2020)](http://www.isi-stats.com/isi2/)
+
+[^1]: Smith, R.B., Skog, L.J. 1992. Postharvest carbon dioxide treatment enhances firmness of several cultivars of strawberry, Horticulture Science 27, Pp. 420-421
+
+---
+
+- Response: `Firmness` (force in N to pierce berry)
+- Treatment factor: `Storage` with 3 levels ($t=3$):
+
+  - "Control" (not stored)
+  - "Air" (21% O<sub>2</sub>, 0.04% CO<sub>2</sub>)
+  - "ModifiedAir" (15% CO<sub>2</sub>, 18% O<sub>2</sub>)
+  
+- Blocking factor: `Variety` with 5 levels ($b=5$): "Allstar", "Bounty", "Kent", "Selva", "Vesper"
+- Stored berries were stored at $0.5^{\circ}$C for two days
+- Three clamshells of each variety randomly assigned to treatments
+
+## Statistical Model
+
+$$y_{ij}=\mu+\tau_i+\rho_j+\varepsilon_{ij}$$
+
+- $\mu$ is the overall mean
+- $\tau_i$ is the differential effect of treatment $i$
+- $\rho_j$ is the differential effect of block $j$
+- $\varepsilon_{ij}\sim N(0,\sigma^2)$ represents the error
+- This is an **additive model**: the treatment is assumed to have the same effect in each block
+
+## Hypothesis Test
+
+- We expect firmness to vary according to variety
+- However, we are interested in the effect of the treatment (air type)
+- We conduct a hypothesis test for the treatment variable:
+
+  - $H_0: \tau_1 = \tau_2 = \tau_3 = 0$
+  - $H_A:$ At least one $\tau_i$ is different
+
+## EDA
+
+::: panel-tabset
+### Storage
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Strawberry firmness for different storage conditions."
+
+strawberries |>
+  ggplot(aes(Storage, Firmness)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+### Variety
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Firmness for different strawberry varieities."
+
+strawberries |>
+  ggplot(aes(Variety, Firmness)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+### Both
+
+```{r}
+#| include: TRUE
+#| echo: FALSE
+#| fig-cap: "Firmness for different strawberry varieities with different storage conditions."
+
+strawberries |>
+  ggplot(aes(Variety, Firmness, color = Storage, shape = Storage)) +
+  geom_point(size = 4) +
+  theme_minimal()
+```
+:::
+
+## ANOVA Table (Not acconting for Variety)
+
+- First we consider ANOVA without accounting for `Variety`
+- We are unable to detect a treatment effect
+- Much of the variability in firmness is due to differences between varieties and is left unexplained
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(Firmness ~ Storage, data = strawberries) |>
+  anova() |>
+  tidy()
+```
+
+## ANOVA Table (Accounting for variety)
+
+- This time we account for `Variety`
+- Now the treatment effect is apparent
+- We reject $H_0$ and conclude that there is convincing evidence of a treatment effect.
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+lm(Firmness ~ Variety + Storage, data = strawberries) |>
+  anova() |>
+  tidy()
+```
+
+## Pairwise Comparisons
+
+- We can follow up with pairwise comparisons between different treatment levels
+- Adjust for multiple comparisons
+
+```{r}
+#| include: TRUE
+#| echo: TRUE
+
+aov(Firmness ~ Variety + Storage, data = strawberries) |>
+  TukeyHSD("Storage")
+```
+
+---
+
+There is a significant difference between the mean firmness for "Modified Air" and "Air" and between "Modified Air" and "Control"
+
+## Scope of Inference
+
+- Because this was an experiment, we can conclude that the difference in storage method caused the difference in firmness
+- Storing strawberries in air enriched in CO<sub>2</sub> increases firmness compared to not storing the berries at all or storing them in normal air
+
+---
+
+- Choosing varieties with large variability in firmness (large variation between blocks) broadens the scope of inference
+- For example, we could have controlled unexplained variability by focusing on a single variety
+- Then our conclusions would be limited to that single variety

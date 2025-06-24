@@ -1,0 +1,325 @@
+---
+title: "Compare Two Independent Means"
+subtitle: |
+  | IMS1 Ch. 20 
+  | Math 219
+author: "Yurk"
+format: 
+  revealjs:
+    theme: beige
+editor: source
+---
+
+## Birth Weights and Smoking
+
+<!-- Useful: https://quarto.org/docs/presentations/revealjs/ -->
+
+<!-- this, too: https://quarto.org/docs/authoring/markdown-basics.html -->
+
+```{r}
+#| include: false
+#| echo: false
+
+library(tidyverse)
+library(infer)
+library(openintro)
+```
+
+```{r}
+#| include: false
+#| echo: false
+data(births14)
+
+births14 <- births14 |>
+  drop_na(habit, weight) |>
+  select(habit, weight)
+```
+
+-   Do infants whose mothers smoke have a different mean birth weight than infants whose mothers do not smoke?
+- Let $\mu_n$ be the mean weight (lbs) of infants whose mothers did not smoke, and let $\mu_s$ be the mean for infants whose mothers smoked
+
+## Inference
+
+-  We will estimate the difference in mean birth weights $\mu_n-\mu_s$ using a confidence interval
+-   We will conduct a hypothesis test with hypotheses
+    -   $H_0: \mu_n-\mu_s = 0$
+    -   $H_A: \mu_n-\mu_s \neq 0$
+
+## Data
+
+-   `births14` [^1] dataset
+-   Random sample of 1,000 cases from US birth data set from 2014 (19 removed with missing values)
+-   `habit` is smoking habit ("smoker" or nonsmoker")
+- `weight` is birth weight in pounds
+
+[^1]: `births14` is from the `openintro` package
+
+## EDA
+
+::: panel-tabset
+### Histograms
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Histrograms showing birth weights for infants whose mothers did not smoke (top) for infants whose mothers smoked (bottom)."
+
+births14 |>
+  ggplot(aes(weight, fill = habit)) +
+  geom_histogram(bins = 15, color = "white") +
+  labs(x = "newborn weight (lbs)") +
+  facet_wrap(vars(habit), ncol = 1, scales = "free_y") +
+  theme_minimal() +
+  theme(axis.text=element_text(size=16),
+        axis.title=element_text(size=14),
+        strip.text=element_text(size=16),
+        legend.position = "none")
+```
+
+### Summary Statistics
+
+```{r}
+#| include: false
+#| echo: false
+
+b14stat <- births14 |>
+  group_by(habit) |>
+  summarize(n = n(),
+            mean = mean(weight),
+            sd = sd(weight))
+
+dif_mean <- b14stat |>
+  summarize(dif = -diff(mean)) |>
+  pull()
+```
+
+| habit |  n  | mean  |  sd   |
+|--|:---:|:-----:|:-----:|
+| nonsmoker | 867 | 7.27 | 1.23 |
+| smoker | 114 | 6.68 | 1.60 |
+
+The observed difference in means is $$\begin{array}{lcr}\bar{x}_n-\bar{x}_s &=& 7.27-6.68\\ &=& 0.59\end{array}$$
+
+:::
+
+## Randomization Test for Difference in Means
+
+- We can simulate a true null hypothesis by randomly permuting the values of the response variable
+
+```{r}
+#| include: true
+#| echo: true
+
+set.seed(8675309)
+
+library(infer)
+births_perm <- births14 |>
+  specify(weight ~ habit) |>
+  hypothesize(null = "independence") |>
+  generate(reps = 1000, type = "permute") |>
+  calculate(stat = "diff in means", order = c("nonsmoker", "smoker"))
+```
+
+---
+
+```{r}
+#| include: true
+#| echo: false
+#| fig-cap: "Histogram of differences in means (null distribution) calculated from 1,000 random permutations of birth weights. Observed difference is indicated by dashed vertical line."
+
+births_perm |>
+  ggplot(aes(stat)) +
+  geom_histogram(bins = 30, color = "white") +
+  geom_vline(xintercept = dif_mean, color = "red", linetype = "dashed", linewidth = 2) +
+  labs(x = "difference in randomized means (nonsmoker - smoker)") +
+  theme_minimal()
+```
+
+
+---
+
+- The p-value is the proportion of randomized differences that are at least as extreme as the observed value ($\leq$ `r round(-dif_mean,2)` or $\geq$ `r round(dif_mean,2)`)
+- There are no such randomized differences, so the p-value is less than 0.001 (1 in 1000)
+
+```{r}
+#| include: true
+#| echo: true
+
+births_perm |>
+  summarize(n_extreme = sum(abs(stat >= dif_mean)),
+            pval = mean(abs(stat) >= dif_mean))
+```
+
+## Test Statistic for Comparing Two Means
+
+- The test statistic for comparing two means is the $T$ statistic ($T$ score)
+- We will use a version of the $T$ statistic that assumes the two populations have equal variance (different than the version presented in the text)
+
+## Pooled Sample Standard Deviation
+
+- First we compute the pooled sample standard deviation,
+$$s_p = \sqrt{\frac{(n_1-1)s_1^2+(n_2-1)s_2^2}{n_1+n_2-2}}$$
+- The pooled sample standard deviation in birth weights is
+$$\begin{array}{rcl} s_p &=&  \sqrt{\frac{(867-1)\cdot 1.23^2+(114-1)\cdot 1.60^2}{867+114-2}}\\ &=& 1.28\end{array}$$
+---
+
+- The $T$ statistic is
+$$T=\frac{(\bar{x}_1-\bar{x}_2)-0}{s_p\sqrt{\frac{1}{n_1}+\frac{1}{n_2}}}$$
+- For the birth weight example, the value is
+$$T=\frac{0.59-0}{1.28\cdot\sqrt{\frac{1}{867}+\frac{1}{114}}} = 4.63$$
+
+## Mathematical Model for Testing the Difference in Means
+
+::: callout-note
+
+When the null hypothesis is true and the following conditions are met, the $T$ score has a $t$-distribution with $df=n_1+n_2-2$ degrees of freedom.
+
+1. Groups have equal variance in the population 
+2. Independent observations within and between groups
+3.  Normality: Large samples and no extreme outliers.
+:::
+
+## Two Sample T-Test
+
+- The degrees of freedom for the birth weight example is $df=867+114-2=979$.
+- The p-value is extremely small
+
+```{r}
+#| include: true
+#| echo: true
+
+2*pt(-4.63, df = 979)
+```
+
+## Note About Relaxing the Equal Variance Assumption
+
+- We can compute a $T$ statistic without assuming equal variances (see the formula in the book)
+- If the null hypothesis is true and the technical conditions are met, then the distribution of these $T$ statistics will be be *approximately* $t$-distributed 
+- The $df$ for the approximating $t$ distribution involves a complicated calculation (not the one listed in the text)
+
+---
+
+- We can use the `t_test` function in the `infer` package to calculate a p-value
+- It calculates the $T$ statistic, $df$, and the p-value for us
+- It does **NOT** check conditions
+- If we specify the option `var.equal = TRUE`, these calculations will use the equal variance assumption
+
+---
+
+- The value of $T$ and the p-value differ from ours due to rounding
+
+```{r}
+#| include: true
+#| echo: true
+births14 |> 
+  t_test(weight ~ habit,
+         var.equal = TRUE,
+         order = c("nonsmoker", "smoker"))
+```
+
+---
+
+- Specifying `var.equal = TRUE` relaxes the equal variance assumption
+- Note that $df$ is no longer an integer
+
+```{r}
+#| include: true
+#| echo: true
+births14 |> 
+  t_test(weight ~ habit,
+         var.equal = FALSE,
+         order = c("nonsmoker", "smoker"))
+```
+
+
+## Bootstrap Confidence Interval for Difference in Means
+
+- The method for calculating bootsrap confidence intervals for a difference in means is similar to the methods we used for a difference in proportions
+- We create bootstrap samples from each group (resampling with replacement) and calculate a difference in means
+- We do this 1,000 time and use the resulting sampling distribution to calculate a bootstrap percentile CI or a boostrap SE CI
+
+---
+
+- Lets calculate differences in bootstrapped means for the birth weight example
+- The 95% boostrap percentile CI is (0.312, 0.917)
+
+```{r}
+#| include: true
+#| echo: true
+
+births_boot <- births14 |>
+  specify(weight ~ habit) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "diff in means", order = c("nonsmoker", "smoker"))
+
+births_boot |>
+  summarize(ci_lo = quantile(stat, 0.025),
+            ci_hi = quantile(stat, 0.975))
+```
+
+## Estimating the Difference in Means Using a Mathematical Model
+
+- If the technical conditions are met, including the equal variance assumption, then we can use the $t$-distribution to estimate the difference in means
+- We can calculate a confidence interval for the difference in means as $$(\bar{x}_1-\bar{x}_2)\pm t^{\ast}_{df}\times SE$$
+
+---
+
+- Assuming equal variance, $df=n_1+n_2-2$, and the standard error is $$SE = s_p\sqrt{\frac{1}{n_1}+\frac{1}{n_2}}$$
+- The value of $t^{\ast}_{df}$ depends on the degrees of freedom and the confidence level
+- For the birth weights example $$SE=1.28\cdot\sqrt{\frac{1}{867}+\frac{1}{114}}=0.128$$
+
+---
+
+- Since $df=979$ for this example, the value of $t^{\ast}_{df}$ for a 95% confidence interval is 1.96
+- Thus, the 95% confidence interval is $$0.59\pm1.96\times0.128=0.59\pm0.251$$
+- In interval form it is approximately (0.339, 0.841)
+
+```{r}
+#| include: true
+#| echo: true
+
+qt(0.975, df = 979)
+```
+
+## Relaxing the Equal Variance Assumption for CI
+
+- We can also use the `t_test` function to calculate CI
+- Here is the version with the equal variance assumption
+
+```{r}
+#| include: true
+#| echo: true
+
+births14 |> 
+  t_test(weight ~ habit,
+         var.equal = TRUE,
+         conf_int = TRUE,
+         conf_level = 0.95,
+         order = c("nonsmoker", "smoker"))
+```
+
+---
+
+- Here is the confidence interval calculated without assuming equal variances
+
+```{r}
+#| include: true
+#| echo: true
+
+births14 |> 
+  t_test(weight ~ habit,
+         var.equal = FALSE,
+         conf_int = TRUE,
+         conf_level = 0.95,
+         order = c("nonsmoker", "smoker"))
+```
+
+## Conclusions
+
+- We get the same result from both versions of the hypothesis test.
+- We reject the null hypothesis at the $\alpha=0.05$ significance level and conclude that there is strong evidence of a difference in the average weights of infants born to mothers who smoked and those who did not (p < 0.001)
+
+---
+
+- We are 95% confident that the mean weight of babies born to mothers who did not smoke is between 0.285 and 0.900 pounds higher than the mean weight of babies whos mothers smoked
+- This result is also consistent with the result of the hypothesis test, since 0 does not appear in the 95% confidence interval
